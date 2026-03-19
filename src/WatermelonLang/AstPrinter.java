@@ -1,6 +1,5 @@
 package WatermelonLang;
 
-// Этот класс реализует интерфейс Visitor и превращает дерево в строку
 public class AstPrinter implements Expr.Visitor<String> {
 
     String print(Expr expr) {
@@ -9,13 +8,11 @@ public class AstPrinter implements Expr.Visitor<String> {
 
     @Override
     public String visitBinaryExpr(Expr.Binary expr) {
-        // Превращаем в строку вида: (+ 1 2)
         return parenthesize(expr.operator.value, expr.left, expr.right);
     }
 
     @Override
     public String visitGroupingExpr(Expr.Grouping expr) {
-        // Превращаем в строку вида: (group expression)
         return parenthesize("group", expr.expression);
     }
 
@@ -30,41 +27,34 @@ public class AstPrinter implements Expr.Visitor<String> {
         return parenthesize(expr.operator.value, expr.right);
     }
 
-    // Вспомогательный метод для красивых скобочек
+    @Override
+    public String visitVariableExpr(Expr.Variable expr) {
+        return expr.name.value;
+    }
+
+    @Override
+    public String visitAssignExpr(Expr.Assign expr) {
+        return parenthesize("= " + expr.name.value, expr.value);
+    }
+
+    @Override
+    public String visitLogicalExpr(Expr.Logical expr) {
+        return parenthesize(expr.operator.value, expr.left, expr.right);
+    }
+
+    @Override
+    public String visitCallExpr(Expr.Call expr) {
+        return parenthesize("call", expr.callee);
+    }
+
     private String parenthesize(String name, Expr... exprs) {
         StringBuilder builder = new StringBuilder();
-
         builder.append("(").append(name);
         for (Expr expr : exprs) {
             builder.append(" ");
-            builder.append(expr.accept(this)); // Рекурсия!
+            builder.append(expr.accept(this));
         }
         builder.append(")");
-
         return builder.toString();
-    }
-
-    // Мэин для теста (можно удалить потом)
-    public static void main(String[] args) {
-        // Пробуем создать выражение вручную: -123 * (45.67)
-        // Структура:
-        //      *
-        //     / \
-        //   (-)  (group)
-        //    |      |
-        //   123   45.67
-
-        Expr expression = new Expr.Binary(
-                new Expr.Unary(
-                        new Token(TokenType.MINUS, "-", null, 1),
-                        new Expr.Literal(123)
-                ),
-                new Token(TokenType.STAR, "*", null, 1),
-                new Expr.Grouping(
-                        new Expr.Literal(45.67)
-                )
-        );
-
-        System.out.println(new AstPrinter().print(expression));
     }
 }

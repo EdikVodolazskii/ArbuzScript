@@ -1,2 +1,29 @@
-// Это файл test.arb
-(10 + 20) * 3 > 50 == true
+// 1. Проверка объявления функции
+func factorial(n: int) -> int {
+    if (n <= 1) {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+
+// 2. Проверка переменных и вызова функции
+var num: int = 5;
+var result: int = factorial(num);
+
+// 3. Проверка цикла while и присваивания
+var counter: int = 10;
+while (counter > 0) {
+    counter = counter - 1;
+}
+
+// 4. Проверка цикла for
+for (var i: int = 0; i < 5; i = i + 1) {
+    var temp: int = i * 2;
+}
+
+// 5. Проверка логических операций и if-else
+if (result >= 100 and counter == 0) {
+    var success: bool = true;
+} else {
+    var success: bool = false;
+}

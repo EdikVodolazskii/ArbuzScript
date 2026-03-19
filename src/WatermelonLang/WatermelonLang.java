@@ -51,25 +51,31 @@ public class WatermelonLang {
     }
 
     // Самое сердце: запуск обработки кода
+
     private static void run(String source) {
-        // 1. Лексический анализ (То, что мы сейчас пишем)
+        // 1. Лексический анализ
         Lexer lexer = new Lexer(source);
         List<Token> tokens = lexer.scanTokens();
 
-        // Пока что просто выведем токены, чтобы проверить, как работает Лексер
-        //for (Token token : tokens) {
-            //System.out.println(token);
-        //}
-        Parser parser = new Parser(tokens);
-        Expr expression = parser.parse();
+        // --- ОТЛАДКА: Выводим все токены ---
+        // Это поможет понять, видит ли лексер точки с запятой и переводы строк
+         System.out.println("--- TOKENS START ---");
+        for (Token token : tokens) {
+            System.out.println(token);
+        }
+        System.out.println("--- TOKENS END ---");
+        // -----------------------------------
 
-        // Если была синтаксическая ошибка, выходим
+        // 2. Парсинг (Синтаксический анализ)
+        Parser parser = new Parser(tokens);
+        List<Stmt> statements = parser.parse();
+
+        // Если была синтаксическая ошибка (например, пропущена запятая), выходим
         if (hadError) return;
 
-        // Печатаем дерево!
-        System.out.println(new AstPrinter().print(expression));
-
-        // (Позже здесь будет запуск Парсера)
+        // 3. Результат
+        // Пока мы не написали Интерпретатор, просто выводим количество найденных инструкций
+        System.out.println("Success! Parsed " + statements.size() + " statements.");
     }
 
     // --- ОБРАБОТКА ОШИБОК ---

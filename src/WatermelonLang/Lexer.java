@@ -1,262 +1,274 @@
 package WatermelonLang;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 
 public class Lexer {
-    private final String source;            // Исходный код всей программы
-    private final List<Token> tokens = new ArrayList<>(); // Сюда складываем готовые токены
-    private static final Map<String, TokenType> keywords;
-    static {
-        keywords = new HashMap<>();
 
-        // Основные
-        keywords.put("let",    TokenType.LET);
-        keywords.put("var",    TokenType.VAR);
-        keywords.put("func",   TokenType.FUNC);
-        keywords.put("struct", TokenType.STRUCT);
-        keywords.put("return", TokenType.RETURN);
-        keywords.put("pub",    TokenType.PUB);
-        keywords.put("import", TokenType.IMPORT);
-
-        // Управление потоком
-        keywords.put("if",       TokenType.IF);
-        keywords.put("else",     TokenType.ELSE);
-        keywords.put("while",    TokenType.WHILE);
-        keywords.put("for",      TokenType.FOR);
-        keywords.put("in",       TokenType.IN);
-        keywords.put("break",    TokenType.BREAK);
-        keywords.put("continue", TokenType.CONTINUE);
-
-        // Логика и Биты (СЛОВА)
-        keywords.put("true",    TokenType.TRUE);
-        keywords.put("false",   TokenType.FALSE);
-        keywords.put("and",     TokenType.AND_KW);
-        keywords.put("or",      TokenType.OR_KW);
-        keywords.put("not",     TokenType.NOT_KW);
-        keywords.put("is",      TokenType.IS);
-        keywords.put("xor",     TokenType.XOR);
-        keywords.put("bit_and", TokenType.BIT_AND);
-        keywords.put("bit_or",  TokenType.BIT_OR);
-        keywords.put("bit_not", TokenType.BIT_NOT);
-        keywords.put("shl",     TokenType.SHL);
-        keywords.put("shr",     TokenType.SHR);
-
-        // Типы данных
-        keywords.put("int",   TokenType.INT_TYPE);
-        keywords.put("float", TokenType.FLOAT_TYPE);
-        keywords.put("bool",  TokenType.BOOL_TYPE);
-        keywords.put("str",   TokenType.STR_TYPE);
-        keywords.put("char",  TokenType.CHAR_TYPE);
-        keywords.put("byte",  TokenType.BYTE_TYPE);
+    private enum State {
+        START, IN_INT, IN_FLOAT, IN_ID, IN_STR, SEEN_SLASH, IN_COMMENT,
+        SEEN_BANG, SEEN_EQ, SEEN_LESS, SEEN_GREATER, SEEN_MINUS, ERROR
     }
 
-    // Курсоры для навигации по тексту
-    private int start = 0;   // Указывает на первый символ текущего токена
-    private int current = 0; // Указывает на символ, который мы сейчас рассматриваем
-    private int line = 1;    // Номер строки (для ошибок: "Ошибка на строке 5")
+    private enum CharType {
+        DIGIT, LETTER, DOT, QUOTE, SLASH, EQUALS, BANG, LESS, GREATER, MINUS, SPACE, NEWLINE, OTHER, EOF
+    }
+
+    private static final State[][] transitionMatrix = new State[State.values().length][CharType.values().length];
+    private final String source;
+    private final List<Token> tokens = new ArrayList<>();
+    private static final Map<String, TokenType> keywords = new HashMap<>();
+
+    static {
+        // --- Keywords ---
+        keywords.put("let", TokenType.LET);
+        keywords.put("var", TokenType.VAR);
+        keywords.put("func", TokenType.FUNC);
+        keywords.put("struct", TokenType.STRUCT);
+        keywords.put("return", TokenType.RETURN);
+        keywords.put("pub", TokenType.PUB);
+        keywords.put("import", TokenType.IMPORT);
+        keywords.put("if", TokenType.IF);
+        keywords.put("else", TokenType.ELSE);
+        keywords.put("while", TokenType.WHILE);
+        keywords.put("for", TokenType.FOR);
+        keywords.put("in", TokenType.IN);
+        keywords.put("break", TokenType.BREAK);
+        keywords.put("continue", TokenType.CONTINUE);
+        keywords.put("true", TokenType.TRUE);
+        keywords.put("false", TokenType.FALSE);
+        keywords.put("and", TokenType.AND_KW);
+        keywords.put("or", TokenType.OR_KW);
+        keywords.put("not", TokenType.NOT_KW);
+        keywords.put("is", TokenType.IS);
+        keywords.put("xor", TokenType.XOR);
+        keywords.put("bit_and", TokenType.BIT_AND);
+        keywords.put("bit_or", TokenType.BIT_OR);
+        keywords.put("bit_not", TokenType.BIT_NOT);
+        keywords.put("shl", TokenType.SHL);
+        keywords.put("shr", TokenType.SHR);
+        keywords.put("int", TokenType.INT_TYPE);
+        keywords.put("float", TokenType.FLOAT_TYPE);
+        keywords.put("bool", TokenType.BOOL_TYPE);
+        keywords.put("str", TokenType.STR_TYPE);
+        keywords.put("char", TokenType.CHAR_TYPE);
+        keywords.put("byte", TokenType.BYTE_TYPE);
+
+        // Fill ERROR by default
+        for (State s : State.values()) {
+            for (CharType c : CharType.values()) {
+                transitionMatrix[s.ordinal()][c.ordinal()] = State.ERROR;
+            }
+        }
+
+        // --- TRANSITION RULES ---
+        setTrans(State.START, CharType.DIGIT, State.IN_INT);
+        setTrans(State.START, CharType.LETTER, State.IN_ID);
+        setTrans(State.START, CharType.QUOTE, State.IN_STR); // Start string
+        setTrans(State.START, CharType.SLASH, State.SEEN_SLASH);
+        setTrans(State.START, CharType.BANG, State.SEEN_BANG);
+        setTrans(State.START, CharType.EQUALS, State.SEEN_EQ);
+        setTrans(State.START, CharType.LESS, State.SEEN_LESS);
+        setTrans(State.START, CharType.GREATER, State.SEEN_GREATER);
+        setTrans(State.START, CharType.MINUS, State.SEEN_MINUS);
+        setTrans(State.START, CharType.SPACE, State.START);
+        setTrans(State.START, CharType.NEWLINE, State.START);
+
+        setTrans(State.IN_INT, CharType.DIGIT, State.IN_INT);
+        setTrans(State.IN_INT, CharType.DOT, State.IN_FLOAT);
+        setTrans(State.IN_FLOAT, CharType.DIGIT, State.IN_FLOAT);
+        setTrans(State.IN_ID, CharType.LETTER, State.IN_ID);
+        setTrans(State.IN_ID, CharType.DIGIT, State.IN_ID);
+
+        // Strings: Accept everything except Quote
+        for (CharType c : CharType.values()) {
+            if (c != CharType.QUOTE && c != CharType.EOF) {
+                setTrans(State.IN_STR, c, State.IN_STR);
+            }
+        }
+        // IMPORTANT: Quote transitions back to START (Ending the string)
+        setTrans(State.IN_STR, CharType.QUOTE, State.START);
+
+        // Comments
+        setTrans(State.SEEN_SLASH, CharType.SLASH, State.IN_COMMENT);
+        for (CharType c : CharType.values()) {
+            if (c != CharType.NEWLINE && c != CharType.EOF) {
+                setTrans(State.IN_COMMENT, c, State.IN_COMMENT);
+            }
+        }
+        setTrans(State.IN_COMMENT, CharType.NEWLINE, State.START);
+
+        // Operators
+        setTrans(State.SEEN_BANG, CharType.EQUALS, State.START);
+        setTrans(State.SEEN_EQ, CharType.EQUALS, State.START);
+        setTrans(State.SEEN_LESS, CharType.EQUALS, State.START);
+        setTrans(State.SEEN_GREATER, CharType.EQUALS, State.START);
+        setTrans(State.SEEN_MINUS, CharType.GREATER, State.START);
+    }
+
+    private static void setTrans(State from, CharType input, State to) {
+        transitionMatrix[from.ordinal()][input.ordinal()] = to;
+    }
 
     public Lexer(String source) {
         this.source = source;
     }
 
-    // Главный метод: запускает процесс и возвращает список токенов
+    private int pos = 0;
+    private int line = 1;
+    private StringBuilder buffer = new StringBuilder();
+
     public List<Token> scanTokens() {
-        while (!isAtEnd()) {
-            // Мы в начале новой лексемы.
-            start = current;
-            scanToken();
+        State currentState = State.START;
+
+        while (pos <= source.length()) {
+            char c = (pos < source.length()) ? source.charAt(pos) : '\0';
+            CharType type = getCharType(c);
+
+            State nextState = State.ERROR;
+            if (type != CharType.EOF) {
+                nextState = transitionMatrix[currentState.ordinal()][type.ordinal()];
+            }
+
+            // 1. END OF TOKEN (ERROR transition)
+            if (nextState == State.ERROR && currentState != State.START) {
+                finalizeToken(currentState);
+                currentState = State.START;
+                buffer.setLength(0);
+                continue; // Re-process character in START
+            }
+
+            // 2. SINGLE CHARACTERS in START
+            if (currentState == State.START && nextState == State.ERROR) {
+                if (type != CharType.EOF && type != CharType.SPACE && type != CharType.NEWLINE) {
+                    addSingleCharToken(c);
+                }
+                if (c == '\n') line++;
+                pos++;
+                continue;
+            }
+
+            // 3. SPECIAL TRANSITIONS (String end, Operators)
+            // We check this BEFORE updating currentState to catch transitions like IN_STR -> START
+            handleSpecialTransitions(currentState, nextState, type);
+
+            // 4. UPDATE STATE
+            currentState = nextState;
+
+            // 5. BUFFERING
+            // We add to buffer if we are in a data state.
+            // EXCEPTION: If we just entered IN_STR (Opening quote), don't add the quote.
+            if (shouldAddToBuffer(currentState)) {
+                if (currentState == State.IN_STR && type == CharType.QUOTE) {
+                    // Do not buffer the opening quote
+                } else if (c != '\0') {
+                    buffer.append(c);
+                }
+            }
+
+            if (c == '\n') line++;
+            pos++;
         }
 
-        // В конце всегда добавляем токен EOF (End Of File), чтобы парсер знал, что код кончился
         tokens.add(new Token(TokenType.EOF, "", null, line));
         return tokens;
     }
 
-    // Проверка: не дошли ли мы до конца текста?
-    private boolean isAtEnd() {
-        return current >= source.length();
-    }
+    private void finalizeToken(State finalState) {
+        String text = buffer.toString();
+        if (text.isEmpty() && !isSingleCharState(finalState)) return;
 
-    // ---------------------------------------------
-    // Сюда мы будем добавлять логику распознавания
-    // ---------------------------------------------
-    private void scanToken() {
-        char c = advance();
-
-        switch (c) {
-            // Односимвольные токены
-            case '(': addToken(TokenType.LPAREN); break;
-            case ')': addToken(TokenType.RPAREN); break;
-            case '{': addToken(TokenType.LBRACE); break;
-            case '}': addToken(TokenType.RBRACE); break;
-            case '[': addToken(TokenType.LBRACKET); break; // Массивы
-            case ']': addToken(TokenType.RBRACKET); break;
-            case ',': addToken(TokenType.COMMA); break;
-            case '.': addToken(TokenType.DOT); break;
-            case '+': addToken(TokenType.PLUS); break;
-            case ';': addToken(TokenType.SEMICOLON); break;
-            case '*': addToken(TokenType.STAR); break;
-            case '^': addToken(TokenType.CARET); break;
-            case ':': addToken(TokenType.COLON); break;
-
-            // Операторы, которые могут быть двойными ( ! и != )
-            case '!':
-                addToken(match('=') ? TokenType.BANG_EQUAL : TokenType.BANG);
-                break;
-            case '=':
-                addToken(match('=') ? TokenType.EQUAL_EQUAL : TokenType.ASSIGN);
-                break;
-            case '<':
-                addToken(match('=') ? TokenType.LESS_EQUAL : TokenType.LESS);
-                break;
-            case '>':
-                addToken(match('=') ? TokenType.GREATER_EQUAL : TokenType.GREATER);
-                break;
-
-            // Стрелка (->) или Минус (-)
-            case '-':
-                addToken(match('>') ? TokenType.ARROW : TokenType.MINUS);
-                break; // <-- ВАЖНО: не забывайте break!
-
-            // Деление или Комментарий
-            case '/':
-                if (match('/')) {
-                    // Комментарий идет до конца строки
-                    while (peek() != '\n' && !isAtEnd()) advance();
-                } else {
-                    addToken(TokenType.SLASH);
-                }
-                break;
-
-            // Пробелы
-            case ' ':
-            case '\r':
-            case '\t':
-                break;
-
-            case '\n':
-                line++;
-                break;
-
-            // Строковые литералы (начинаются с кавычки)
-            case '"': string(); break;
-
-            default:
-                if (isDigit(c)) {
-                    number();
-                } else if (isAlpha(c)) {
-                    identifier();
-                } else {
-                    WatermelonLang.error(line, "Unexpected character: " + c);
-                }
-                break;
+        if (finalState == State.IN_INT) {
+            tokens.add(new Token(TokenType.INT_LITERAL, text, Integer.parseInt(text), line));
+        } else if (finalState == State.IN_FLOAT) {
+            tokens.add(new Token(TokenType.FLOAT_LITERAL, text, Double.parseDouble(text), line));
+        } else if (finalState == State.IN_ID) {
+            TokenType type = keywords.getOrDefault(text, TokenType.IDENT);
+            tokens.add(new Token(type, text, null, line));
+        } else if (finalState == State.SEEN_SLASH) {
+            tokens.add(new Token(TokenType.SLASH, "/", null, line));
+        } else if (finalState == State.SEEN_BANG) {
+            tokens.add(new Token(TokenType.BANG, "!", null, line));
+        } else if (finalState == State.SEEN_EQ) {
+            tokens.add(new Token(TokenType.ASSIGN, "=", null, line));
+        } else if (finalState == State.SEEN_LESS) {
+            tokens.add(new Token(TokenType.LESS, "<", null, line));
+        } else if (finalState == State.SEEN_GREATER) {
+            tokens.add(new Token(TokenType.GREATER, ">", null, line));
+        } else if (finalState == State.SEEN_MINUS) {
+            tokens.add(new Token(TokenType.MINUS, "-", null, line));
         }
     }
 
-    // Возвращает текущий символ и двигает курсор (current) вперед.
-    private char advance() {
-        return source.charAt(current++);
-    }
-    private char peek()
-    {
-        if(isAtEnd()) return '\0';
-        return source.charAt(current);
-    }
-
-    private boolean match(char expected)
-    {
-        if(isAtEnd()) return false;
-        if(source.charAt(current)!=expected) return false;
-        current++;
-        return true;
-    }
-
-    // Метод 2: Добавить простой токен (без значения, например "+") в список.
-    private void addToken(TokenType type) {
-        addToken(type, null);
-    }
-
-    // Метод 3: Добавить токен со значением (для чисел, строк, идентификаторов).
-    private void addToken(TokenType type, Object literal) {
-        // Вырезаем текст из исходника от start до current
-        String text = source.substring(start, current);
-        tokens.add(new Token(type, text, literal, line));
-    }
-
-    // --- ОБРАБОТКА СТРОК ---
-    private void string() {
-        // Идем пока не встретим закрывающую кавычку или конец файла
-        while (peek() != '"' && !isAtEnd()) {
-            if (peek() == '\n') line++; // Разрешаем многострочные строки
-            advance();
+    private void handleSpecialTransitions(State prevState, State nextState, CharType type) {
+        // If we transition to START, it might be a completed token (String or Operator)
+        if (nextState == State.START) {
+            if (prevState == State.IN_STR && type == CharType.QUOTE) {
+                // Closing string!
+                tokens.add(new Token(TokenType.STRING_LITERAL, buffer.toString(), buffer.toString(), line));
+                buffer.setLength(0);
+            } else if (prevState == State.SEEN_EQ && type == CharType.EQUALS) {
+                tokens.add(new Token(TokenType.EQUAL_EQUAL, "==", null, line));
+            } else if (prevState == State.SEEN_BANG && type == CharType.EQUALS) {
+                tokens.add(new Token(TokenType.BANG_EQUAL, "!=", null, line));
+            } else if (prevState == State.SEEN_LESS && type == CharType.EQUALS) {
+                tokens.add(new Token(TokenType.LESS_EQUAL, "<=", null, line));
+            } else if (prevState == State.SEEN_GREATER && type == CharType.EQUALS) {
+                tokens.add(new Token(TokenType.GREATER_EQUAL, ">=", null, line));
+            } else if (prevState == State.SEEN_MINUS && type == CharType.GREATER) {
+                tokens.add(new Token(TokenType.ARROW, "->", null, line));
+            }
         }
-
-        if (isAtEnd()) {
-            WatermelonLang.error(line, "Unterminated string.");
-            return;
-        }
-
-        // Закрывающая кавычка
-        advance();
-
-        // Обрезаем кавычки, чтобы получить чистое значение
-        String value = source.substring(start + 1, current - 1);
-        addToken(TokenType.STRING_LITERAL, value);
     }
 
-    // --- ОБРАБОТКА ЧИСЕЛ ---
-    private void number() {
-        while (isDigit(peek())) advance(); // Съедаем цифры
+    private boolean shouldAddToBuffer(State s) {
+        return s == State.IN_INT || s == State.IN_FLOAT || s == State.IN_ID || s == State.IN_STR;
+    }
 
-        // Проверка на дробную часть (например 12.34)
-        if (peek() == '.' && isDigit(peekNext())) {
-            advance(); // Съедаем точку
+    private boolean isSingleCharState(State s) {
+        return s == State.SEEN_EQ || s == State.SEEN_BANG || s == State.SEEN_LESS ||
+                s == State.SEEN_GREATER || s == State.SEEN_MINUS || s == State.SEEN_SLASH;
+    }
 
-            while (isDigit(peek())) advance(); // Съедаем цифры после точки
+    private void addSingleCharToken(char c) {
+        TokenType type = null;
+        if (c == '(') type = TokenType.LPAREN;
+        else if (c == ')') type = TokenType.RPAREN;
+        else if (c == '{') type = TokenType.LBRACE;
+        else if (c == '}') type = TokenType.RBRACE;
+        else if (c == '[') type = TokenType.LBRACKET;
+        else if (c == ']') type = TokenType.RBRACKET;
+        else if (c == ';') type = TokenType.SEMICOLON;
+        else if (c == ',') type = TokenType.COMMA;
+        else if (c == '.') type = TokenType.DOT;
+        else if (c == '+') type = TokenType.PLUS;
+        else if (c == '*') type = TokenType.STAR;
+        else if (c == ':') type = TokenType.COLON;
+        else if (c == '^') type = TokenType.CARET;
 
-            // Парсим как Float (Double), так как есть точка
-            addToken(TokenType.FLOAT_LITERAL, Double.parseDouble(source.substring(start, current)));
+        if (type != null) {
+            tokens.add(new Token(type, String.valueOf(c), null, line));
         } else {
-            // Парсим как Int
-            addToken(TokenType.INT_LITERAL, Integer.parseInt(source.substring(start, current)));
+            WatermelonLang.error(line, "Unexpected character: " + c);
         }
     }
 
-    // --- ОБРАБОТКА ИДЕНТИФИКАТОРОВ И КЛЮЧЕВЫХ СЛОВ ---
-    private void identifier() {
-        while (isAlphaNumeric(peek())) advance();
-
-        String text = source.substring(start, current);
-
-        // Проверяем, является ли это слово зарезервированным (var, func, if...)
-        TokenType type = keywords.get(text);
-        if (type == null) type = TokenType.IDENT; // Если нет, то это имя переменной
-
-        addToken(type);
-    }
-    // Является ли символ цифрой
-    private boolean isDigit(char c) {
-        return c >= '0' && c <= '9';
-    }
-
-    // Является ли символ буквой или _
-    private boolean isAlpha(char c) {
-        return (c >= 'a' && c <= 'z') ||
-                (c >= 'A' && c <= 'Z') ||
-                c == '_';
-    }
-
-    // Буква или цифра?
-    private boolean isAlphaNumeric(char c) {
-        return isAlpha(c) || isDigit(c);
-    }
-
-    // Заглянуть на 2 символа вперед (нужно для чисел типа 12.34)
-    private char peekNext() {
-        if (current + 1 >= source.length()) return '\0';
-        return source.charAt(current + 1);
+    private CharType getCharType(char c) {
+        if (c >= '0' && c <= '9') return CharType.DIGIT;
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_') return CharType.LETTER;
+        if (c == '.') return CharType.DOT;
+        if (c == '"') return CharType.QUOTE;
+        if (c == '/') return CharType.SLASH;
+        if (c == '=') return CharType.EQUALS;
+        if (c == '!') return CharType.BANG;
+        if (c == '<') return CharType.LESS;
+        if (c == '>') return CharType.GREATER;
+        if (c == '-') return CharType.MINUS;
+        if (c == ' ' || c == '\t' || c == '\r') return CharType.SPACE;
+        if (c == '\n') return CharType.NEWLINE;
+        if (c == '\0') return CharType.EOF;
+        return CharType.OTHER;
     }
 }
