@@ -6,7 +6,10 @@ public enum TokenType {
     LET,        // let
     VAR,        // var
     FUNC,       // func
-    STRUCT,     // struct (Для структур, Раздел 5)
+    CLASS,      // class
+    THIS,       // this
+    NEW,        // new
+    STRUCT,     // struct (Legacy)
     RETURN,     // return
     PUB,        // pub    (Для модулей, Раздел 10)
     IMPORT,     // import (Для модулей, Раздел 10)

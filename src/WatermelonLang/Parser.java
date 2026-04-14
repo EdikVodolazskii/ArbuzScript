@@ -20,9 +20,10 @@ public class Parser {
         return statements;
     }
 
-    // Определяет тип текущей конструкции: объявление (функция/переменная) или обычная инструкция.
+    // Определяет тип текущей конструкции: класс, объявление или инструкция.
     private Stmt declaration() {
         try {
+            if (match(CLASS)) return classDeclaration();
             if (match(FUNC)) return function();
             if (match(VAR, LET)) return varDeclaration();
             return statement();
@@ -30,6 +31,28 @@ public class Parser {
             synchronize();
             return null;
         }
+    }
+
+    // Парсит объявление класса, собирая его поля (var) и методы (func).
+    private Stmt classDeclaration() {
+        Token name = consume(IDENT, "Expect class name.");
+        consume(LBRACE, "Expect '{' before class body.");
+
+        List<Stmt.Var> fields = new ArrayList<>();
+        List<Stmt.Function> methods = new ArrayList<>();
+
+        while (!check(RBRACE) && !isAtEnd()) {
+            if (match(VAR, LET)) {
+                fields.add((Stmt.Var) varDeclaration());
+            } else if (match(FUNC)) {
+                methods.add((Stmt.Function) function());
+            } else {
+                throw error(peek(), "Expect 'var' or 'func' inside class.");
+            }
+        }
+
+        consume(RBRACE, "Expect '}' after class body.");
+        return new Stmt.Class(name, fields, methods);
     }
 
     // Разбирает синтаксис объявления функции: имя, параметры, тип возврата и тело.
@@ -43,7 +66,7 @@ public class Parser {
             do {
                 params.add(consume(IDENT, "Expect parameter name."));
                 consume(COLON, "Expect ':' after parameter name.");
-                if (match(INT_TYPE, FLOAT_TYPE, BOOL_TYPE, STR_TYPE, CHAR_TYPE, BYTE_TYPE)) {
+                if (match(INT_TYPE, FLOAT_TYPE, BOOL_TYPE, STR_TYPE, CHAR_TYPE, BYTE_TYPE, IDENT)) {
                     paramTypes.add(previous());
                 } else {
                     throw error(peek(), "Expect parameter type.");
@@ -54,7 +77,7 @@ public class Parser {
 
         consume(ARROW, "Expect '->' before return type.");
         Token returnType;
-        if (match(INT_TYPE, FLOAT_TYPE, BOOL_TYPE, STR_TYPE, CHAR_TYPE, BYTE_TYPE)) {
+        if (match(INT_TYPE, FLOAT_TYPE, BOOL_TYPE, STR_TYPE, CHAR_TYPE, BYTE_TYPE, IDENT)) {
             returnType = previous();
         } else {
             throw error(peek(), "Expect return type.");
@@ -70,7 +93,7 @@ public class Parser {
         Token name = consume(IDENT, "Expect variable name.");
         consume(COLON, "Expect ':' after variable name.");
         Token type;
-        if (match(INT_TYPE, FLOAT_TYPE, BOOL_TYPE, STR_TYPE, CHAR_TYPE, BYTE_TYPE)) {
+        if (match(INT_TYPE, FLOAT_TYPE, BOOL_TYPE, STR_TYPE, CHAR_TYPE, BYTE_TYPE, IDENT)) {
             type = previous();
         } else {
             throw error(peek(), "Expect variable type.");
@@ -193,16 +216,21 @@ public class Parser {
         return assignment();
     }
 
-    // Разбирает операцию присваивания значения переменной.
+    // Разбирает операцию присваивания переменной или свойству объекта.
     private Expr assignment() {
         Expr expr = logicalOr();
         if (match(ASSIGN)) {
             Token equals = previous();
             Expr value = assignment();
+            
             if (expr instanceof Expr.Variable) {
                 Token name = ((Expr.Variable)expr).name;
                 return new Expr.Assign(name, value);
+            } else if (expr instanceof Expr.Get) {
+                Expr.Get get = (Expr.Get)expr;
+                return new Expr.Set(get.object, get.name, value);
             }
+            
             error(equals, "Invalid assignment target.");
         }
         return expr;
@@ -284,12 +312,15 @@ public class Parser {
         return call();
     }
 
-    // Распознает вызов функции или передает управление парсингу базовых значений.
+    // Распознает вызов функции или обращение к свойству объекта через точку.
     private Expr call() {
         Expr expr = primary();
         while (true) {
             if (match(LPAREN)) {
                 expr = finishCall(expr);
+            } else if (match(DOT)) {
+                Token name = consume(IDENT, "Expect property name after '.'.");
+                expr = new Expr.Get(expr, name);
             } else {
                 break;
             }
@@ -309,13 +340,14 @@ public class Parser {
         return new Expr.Call(callee, paren, arguments);
     }
 
-    // Парсит базовые "атомарные" элементы: числа, строки, имена переменных, булевы значения.
+    // Парсит базовые "атомарные" элементы, включая указатель this.
     private Expr primary() {
         if (match(FALSE)) return new Expr.Literal(false);
         if (match(TRUE)) return new Expr.Literal(true);
         if (match(INT_LITERAL, FLOAT_LITERAL, STRING_LITERAL)) {
             return new Expr.Literal(previous().literal);
         }
+        if (match(THIS)) return new Expr.This(previous());
         if (match(IDENT)) return new Expr.Variable(previous());
         if (match(LPAREN)) {
             Expr expr = expression();

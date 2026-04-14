@@ -27,3 +27,28 @@ if (result >= 100 and counter == 0) {
 } else {
     var success: bool = false;
 }
+
+
+// 1. Определение класса
+class Hero {
+    var hp: int;
+    var power: int;
+
+    func takeDamage(damage: int) -> int {
+        this.hp = this.hp - damage;
+        return this.hp;
+    }
+}
+
+// 2. Использование класса
+var warrior: Hero = Hero();
+warrior.hp = 100;
+warrior.power = 50;
+
+// 3. Вызов метода
+var remainingHp: int = warrior.takeDamage(20);
+
+// 4. Обычная логика (для проверки совместимости)
+if (remainingHp < 50) {
+    var status: str = "Warning: Low HP";
+}

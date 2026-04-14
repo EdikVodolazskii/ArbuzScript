@@ -3,6 +3,7 @@ package WatermelonLang;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -70,12 +71,28 @@ public class WatermelonLang {
         Parser parser = new Parser(tokens);
         List<Stmt> statements = parser.parse();
 
-        // Если была синтаксическая ошибка (например, пропущена запятая), выходим
         if (hadError) return;
 
-        // 3. Результат
-        // Пока мы не написали Интерпретатор, просто выводим количество найденных инструкций
-        System.out.println("Success! Parsed " + statements.size() + " statements.");
+        // 3. Семантический анализ (Проверка типов)
+        TypeChecker typeChecker = new TypeChecker();
+        typeChecker.check(statements);
+
+        if (hadError) return;
+
+        // 4. Трансляция в C (Кодогенерация)
+        Transpiler transpiler = new Transpiler();
+        String cCode = transpiler.transpile(statements);
+
+        // Сохраняем результат в файл output.c
+        try (PrintWriter out = new PrintWriter("output.c")) {
+            out.println(cCode);
+        } catch (Exception e) {
+            System.err.println("Failed to write output file: " + e.getMessage());
+        }
+
+        // 5. Результат
+        System.out.println("Success! Code is semantically correct. Parsed " + statements.size() + " statements.");
+        System.out.println("Generated 'output.c' successfully! 🎉");
     }
 
     // --- ОБРАБОТКА ОШИБОК ---

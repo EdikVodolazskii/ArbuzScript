@@ -40,6 +40,9 @@ public class Lexer {
         // --- 1. ЗАПОЛНЯЕМ КЛЮЧЕВЫЕ СЛОВА ---
         keywords.put("let", TokenType.LET); keywords.put("var", TokenType.VAR);
         keywords.put("func", TokenType.FUNC); keywords.put("struct", TokenType.STRUCT);
+        keywords.put("class", TokenType.CLASS);
+        keywords.put("this", TokenType.THIS);
+        keywords.put("new", TokenType.NEW);
         keywords.put("return", TokenType.RETURN); keywords.put("pub", TokenType.PUB);
         keywords.put("import", TokenType.IMPORT); keywords.put("if", TokenType.IF);
         keywords.put("else", TokenType.ELSE); keywords.put("while", TokenType.WHILE);
