@@ -11,8 +11,8 @@ import java.util.List;
 
 public class WatermelonLang {
 
-    // Флаг: была ли ошибка при компиляции?
-    // Если true, мы не будем пытаться запускать код.
+    // Flag: was there a compilation error?
+    // If true, we won't attempt to run the code.
     static boolean hadError = false;
 
     public static void main(String[] args) throws IOException {
@@ -20,24 +20,24 @@ public class WatermelonLang {
             System.out.println("Usage: arbuzc [script]");
             System.exit(64);
         } else if (args.length == 1) {
-            // Режим файла: читаем и компилируем файл
+            // File mode: read and compile the file
             runFile(args[0]);
         } else {
-            // Режим консоли: вводим код строка за строкой (для тестов)
+            // Console mode: input code line by line (for testing)
             runPrompt();
         }
     }
 
-    // Запуск из файла
+    // Run from a file
     private static void runFile(String path) throws IOException {
         byte[] bytes = Files.readAllBytes(Paths.get(path));
         run(new String(bytes, Charset.defaultCharset()));
 
-        // Если была ошибка, выходим с кодом ошибки
+        // If there was an error, exit with an error code
         if (hadError) System.exit(65);
     }
 
-    // Запуск интерактивной консоли (REPL)
+    // Launch interactive console (REPL)
     private static void runPrompt() throws IOException {
         InputStreamReader input = new InputStreamReader(System.in);
         BufferedReader reader = new BufferedReader(input);
@@ -47,19 +47,19 @@ public class WatermelonLang {
             String line = reader.readLine();
             if (line == null) break;
             run(line);
-            hadError = false; // Сбрасываем флаг, чтобы не прерывать сессию
+            hadError = false; // Reset the flag to not interrupt the session
         }
     }
 
-    // Самое сердце: запуск обработки кода
+    // The core: starting code processing
 
     private static void run(String source) {
-        // 1. Лексический анализ
+        // 1. Lexical analysis
         Lexer lexer = new Lexer(source);
         List<Token> tokens = lexer.scanTokens();
 
-        // --- ОТЛАДКА: Выводим все токены ---
-        // Это поможет понять, видит ли лексер точки с запятой и переводы строк
+        // --- DEBUG: Output all tokens ---
+        // This helps to understand if the lexer sees semicolons and newlines
          System.out.println("--- TOKENS START ---");
         for (Token token : tokens) {
             System.out.println(token);
@@ -67,37 +67,37 @@ public class WatermelonLang {
         System.out.println("--- TOKENS END ---");
         // -----------------------------------
 
-        // 2. Парсинг (Синтаксический анализ)
+        // 2. Parsing (Syntax analysis)
         Parser parser = new Parser(tokens);
         List<Stmt> statements = parser.parse();
 
         if (hadError) return;
 
-        // 3. Семантический анализ (Проверка типов)
+        // 3. Semantic analysis (Type checking)
         TypeChecker typeChecker = new TypeChecker();
         typeChecker.check(statements);
 
         if (hadError) return;
 
-        // 4. Трансляция в C (Кодогенерация)
+        // 4. Translation to C (Code generation)
         Transpiler transpiler = new Transpiler();
         String cCode = transpiler.transpile(statements);
 
-        // Сохраняем результат в файл output.c
+        // Save the result to the output.c file
         try (PrintWriter out = new PrintWriter("output.c")) {
             out.println(cCode);
         } catch (Exception e) {
             System.err.println("Failed to write output file: " + e.getMessage());
         }
 
-        // 5. Результат
+        // 5. Result
         System.out.println("Success! Code is semantically correct. Parsed " + statements.size() + " statements.");
         System.out.println("Generated 'output.c' successfully! 🎉");
     }
 
-    // --- ОБРАБОТКА ОШИБОК ---
+    // --- ERROR HANDLING ---
 
-    // Тот самый метод, на который ругалась IDE
+    // The method that the IDE was complaining about
     static void error(int line, String message) {
         report(line, "", message);
     }

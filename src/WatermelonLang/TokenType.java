@@ -2,7 +2,7 @@ package WatermelonLang;
 
 public enum TokenType {
 
-    // --- 1. КЛЮЧЕВЫЕ СЛОВА (ОСНОВНЫЕ) ---
+    // --- 1. KEYWORDS (CORE) ---
     LET,        // let
     VAR,        // var
     FUNC,       // func
@@ -11,45 +11,45 @@ public enum TokenType {
     NEW,        // new
     STRUCT,     // struct (Legacy)
     RETURN,     // return
-    PUB,        // pub    (Для модулей, Раздел 10)
-    IMPORT,     // import (Для модулей, Раздел 10)
+    PUB,        // pub    (For modules, Section 10)
+    IMPORT,     // import (For modules, Section 10)
 
-    // --- 2. ТИПЫ ДАННЫХ ---
+    // --- 2. DATA TYPES ---
     INT_TYPE,   // int
-    FLOAT_TYPE, // float (Добавлено: Раздел 3)
+    FLOAT_TYPE, // float (Added: Section 3)
     BOOL_TYPE,  // bool
     STR_TYPE,   // str
-    CHAR_TYPE,  // char  (Добавлено: Раздел 3)
-    BYTE_TYPE,  // byte  (Критично для крипты, Раздел 3)
+    CHAR_TYPE,  // char  (Added: Section 3)
+    BYTE_TYPE,  // byte  (Critical for crypto, Section 3)
 
-    // --- 3. УПРАВЛЕНИЕ ПОТОКОМ ---
+    // --- 3. FLOW CONTROL ---
     IF,         // if
     ELSE,       // else
     WHILE,      // while
-    FOR,        // for      (Добавлено: Раздел 7)
-    IN,         // in       (Для цикла for-in, Раздел 7)
-    BREAK,      // break    (Добавлено: Раздел 7)
-    CONTINUE,   // continue (Добавлено: Раздел 7)
+    FOR,        // for      (Added: Section 7)
+    IN,         // in       (For for-in loop, Section 7)
+    BREAK,      // break    (Added: Section 7)
+    CONTINUE,   // continue (Added: Section 7)
 
-    // --- 4. ЛИТЕРАЛЫ ---
-    IDENT,          // Идентификаторы (имена переменных, функций)
+    // --- 4. LITERALS ---
+    IDENT,          // Identifiers (variable names, functions)
     INT_LITERAL,    // 123
-    FLOAT_LITERAL,  // 12.34 (Добавлено)
+    FLOAT_LITERAL,  // 12.34 (Added)
     STRING_LITERAL, // "text"
-    CHAR_LITERAL,   // 'c'   (Добавлено)
+    CHAR_LITERAL,   // 'c'   (Added)
     TRUE,           // true
     FALSE,          // false
 
-    // --- 5. АРИФМЕТИЧЕСКИЕ ОПЕРАТОРЫ ---
+    // --- 5. ARITHMETIC OPERATORS ---
     PLUS,           // +
     MINUS,          // -
     STAR,           // *
     SLASH,          // /
     PERCENT,        // %
-    CARET,          // ^ (Возведение в степень, Раздел 8)
+    CARET,          // ^ (Exponentiation, Section 8)
     ASSIGN,         // =
 
-    // --- 6. ЛОГИЧЕСКИЕ ОПЕРАТОРЫ И СРАВНЕНИЕ ---
+    // --- 6. LOGICAL OPERATORS AND COMPARISON ---
     EQUAL_EQUAL,    // ==
     BANG_EQUAL,     // !=
     LESS,           // <
@@ -57,19 +57,19 @@ public enum TokenType {
     GREATER,        // >
     GREATER_EQUAL,  // >=
 
-    // Символьные (Legacy/C-style)
+    // Symbolic (Legacy/C-style)
     AND_AND,        // &&
     OR_OR,          // ||
     BANG,           // !
 
-    // Словесные (Python-style, из Раздела 8)
+    // Word-based (Python-style, from Section 8)
     AND_KW,         // and
     OR_KW,          // or
     NOT_KW,         // not
-    IS,             // is (Проверка типа, Раздел 8.1)
+    IS,             // is (Type check, Section 8.1)
 
-    // --- 7. БИТОВЫЕ ОПЕРАТОРЫ (СЛОВА) ---
-    // Спецификация требует слова для читаемости (Раздел 8)
+    // --- 7. BITWISE OPERATORS (WORDS) ---
+    // Specification requires words for readability (Section 8)
     XOR,            // xor
     BIT_AND,        // bit_and
     BIT_OR,         // bit_or
@@ -77,22 +77,22 @@ public enum TokenType {
     SHL,            // shl
     SHR,            // shr
 
-    // --- 8. СПЕЦИАЛЬНЫЕ СИМВОЛЫ ---
-    ARROW,          // -> (Для возвращаемого типа)
-    DOT,            // .  (Для доступа к полям: struct.field)
-    QUESTION,       // ?  (Для проброса ошибок Result, Раздел 9)
+    // --- 8. SPECIAL CHARACTERS ---
+    ARROW,          // -> (For return type)
+    DOT,            // .  (For field access: struct.field)
+    QUESTION,       // ?  (For error propagation Result, Section 9)
 
-    // --- 9. СКОБКИ И РАЗДЕЛИТЕЛИ ---
+    // --- 9. BRACKETS AND SEPARATORS ---
     LPAREN,         // (
     RPAREN,         // )
     LBRACE,         // {
     RBRACE,         // }
-    LBRACKET,       // [  (Для массивов, Раздел 6)
-    RBRACKET,       // ]  (Для массивов, Раздел 6)
+    LBRACKET,       // [  (For arrays, Section 6)
+    RBRACKET,       // ]  (For arrays, Section 6)
     COLON,          // :
     SEMICOLON,      // ;
     COMMA,          // ,
 
-    // --- 10. СЛУЖЕБНЫЕ ---
-    EOF             // Конец файла
+    // --- 10. SYSTEM/UTILITY ---
+    EOF             // End of file
 }

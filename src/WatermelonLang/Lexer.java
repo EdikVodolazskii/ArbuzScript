@@ -8,7 +8,7 @@ import java.util.Map;
 
 public class Lexer {
 
-    // 1. РАСШИРЯЕМ СОСТОЯНИЯ: Теперь у каждого символа/оператора есть своё состояние
+    // 1. EXTENDING STATES: Now each character/operator has its own state
     private enum State {
         START, IN_INT, IN_FLOAT, IN_ID, IN_STR, STR_CLOSED, IN_COMMENT,
         SEEN_SLASH, SEEN_BANG, IN_BANG_EQ, SEEN_EQ, IN_EQ_EQ,
@@ -19,7 +19,7 @@ public class Lexer {
         ERROR
     }
 
-    // 2. РАСШИРЯЕМ ТИПЫ СИМВОЛОВ
+    // 2. EXTENDING CHARACTER TYPES
     private enum CharType {
         DIGIT, LETTER, DOT, QUOTE, SLASH, EQUALS, BANG, LESS, GREATER, MINUS, SPACE, NEWLINE,
         PLUS, STAR, LPAREN, RPAREN, LBRACE, RBRACE, LBRACKET, RBRACKET, SEMICOLON, COMMA, CARET, COLON,
@@ -28,16 +28,16 @@ public class Lexer {
 
     private static final State[][] transitionMatrix = new State[State.values().length][CharType.values().length];
 
-    // МАППИНГ 1: Таблица поиска (O(1)) для символов (заменяет if/else в getCharType)
+    // MAPPING 1: Lookup table (O(1)) for characters (replaces if/else in getCharType)
     private static final CharType[] charMap = new CharType[128];
 
-    // МАППИНГ 2: Связь финального состояния с Токеном (заменяет if/else в finalizeToken)
+    // MAPPING 2: Link between final state and Token (replaces if/else in finalizeToken)
     private static final TokenType[] acceptingStates = new TokenType[State.values().length];
 
     private static final Map<String, TokenType> keywords = new HashMap<>();
 
     static {
-        // --- 1. ЗАПОЛНЯЕМ КЛЮЧЕВЫЕ СЛОВА ---
+        // --- 1. POPULATE KEYWORDS ---
         keywords.put("let", TokenType.LET); keywords.put("var", TokenType.VAR);
         keywords.put("func", TokenType.FUNC); keywords.put("struct", TokenType.STRUCT);
         keywords.put("class", TokenType.CLASS);
@@ -58,7 +58,7 @@ public class Lexer {
         keywords.put("bool", TokenType.BOOL_TYPE); keywords.put("str", TokenType.STR_TYPE);
         keywords.put("char", TokenType.CHAR_TYPE); keywords.put("byte", TokenType.BYTE_TYPE);
 
-        // --- 2. НАСТРАИВАЕМ O(1) СЛОВАРЬ СИМВОЛОВ (Таблица ASCII) ---
+        // --- 2. CONFIGURE O(1) CHARACTER DICTIONARY (ASCII Table) ---
         Arrays.fill(charMap, CharType.OTHER);
         for (int c = '0'; c <= '9'; c++) charMap[c] = CharType.DIGIT;
         for (int c = 'a'; c <= 'z'; c++) charMap[c] = CharType.LETTER;
@@ -77,16 +77,16 @@ public class Lexer {
         charMap[' '] = CharType.SPACE; charMap['\t'] = CharType.SPACE; charMap['\r'] = CharType.SPACE;
         charMap['\n'] = CharType.NEWLINE;
 
-        // --- 3. ЗАПОЛНЯЕМ МАТРИЦУ ПЕРЕХОДОВ ---
+        // --- 3. FILL TRANSITION MATRIX ---
         for (State s : State.values()) {
             Arrays.fill(transitionMatrix[s.ordinal()], State.ERROR);
         }
 
-        // Пробелы и переводы строк игнорируются (переход в START)
+        // Spaces and newlines are ignored (transition to START)
         setTrans(State.START, CharType.SPACE, State.START);
         setTrans(State.START, CharType.NEWLINE, State.START);
 
-        // Базовые переходы
+        // Basic transitions
         setTrans(State.START, CharType.DIGIT, State.IN_INT);
         setTrans(State.START, CharType.LETTER, State.IN_ID);
         setTrans(State.IN_INT, CharType.DIGIT, State.IN_INT);
@@ -95,7 +95,7 @@ public class Lexer {
         setTrans(State.IN_ID, CharType.LETTER, State.IN_ID);
         setTrans(State.IN_ID, CharType.DIGIT, State.IN_ID);
 
-        // Одиночные символы
+        // Single characters
         setTrans(State.START, CharType.PLUS, State.SEEN_PLUS);
         setTrans(State.START, CharType.STAR, State.SEEN_STAR);
         setTrans(State.START, CharType.LPAREN, State.SEEN_LPAREN);
@@ -110,7 +110,7 @@ public class Lexer {
         setTrans(State.START, CharType.CARET, State.SEEN_CARET);
         setTrans(State.START, CharType.COLON, State.SEEN_COLON);
 
-        // Строки
+        // Strings
         setTrans(State.START, CharType.QUOTE, State.IN_STR);
         for (CharType c : CharType.values()) {
             if (c != CharType.QUOTE && c != CharType.EOF) {
@@ -119,7 +119,7 @@ public class Lexer {
         }
         setTrans(State.IN_STR, CharType.QUOTE, State.STR_CLOSED);
 
-        // Комментарии и слэш
+        // Comments and slash
         setTrans(State.START, CharType.SLASH, State.SEEN_SLASH);
         setTrans(State.SEEN_SLASH, CharType.SLASH, State.IN_COMMENT);
         for (CharType c : CharType.values()) {
@@ -129,7 +129,7 @@ public class Lexer {
         }
         setTrans(State.IN_COMMENT, CharType.NEWLINE, State.START);
 
-        // Двойные операторы
+        // Double operators
         setTrans(State.START, CharType.BANG, State.SEEN_BANG);
         setTrans(State.SEEN_BANG, CharType.EQUALS, State.IN_BANG_EQ);
         setTrans(State.START, CharType.EQUALS, State.SEEN_EQ);
@@ -141,8 +141,8 @@ public class Lexer {
         setTrans(State.START, CharType.MINUS, State.SEEN_MINUS);
         setTrans(State.SEEN_MINUS, CharType.GREATER, State.IN_ARROW);
 
-        // --- 4. НАСТРАИВАЕМ СЛОВАРЬ ПРИНИМАЮЩИХ СОСТОЯНИЙ ---
-        // Если конечного состояния тут нет (например IN_COMMENT), токен просто отбрасывается
+        // --- 4. CONFIGURE ACCEPTING STATES DICTIONARY ---
+        // If there is no final state here (e.g. IN_COMMENT), the token is simply discarded
         acceptingStates[State.IN_INT.ordinal()] = TokenType.INT_LITERAL;
         acceptingStates[State.IN_FLOAT.ordinal()] = TokenType.FLOAT_LITERAL;
         acceptingStates[State.IN_ID.ordinal()] = TokenType.IDENT;
@@ -189,7 +189,7 @@ public class Lexer {
         this.source = source;
     }
 
-    // --- ОСНОВНОЙ ЦИКЛ (Теперь без IF/ELSE проверок конкретных символов) ---
+    // --- MAIN LOOP (Now without IF/ELSE checks for specific characters) ---
     public List<Token> scanTokens() {
         State currentState = State.START;
 
@@ -202,15 +202,15 @@ public class Lexer {
                 nextState = transitionMatrix[currentState.ordinal()][type.ordinal()];
             }
 
-            // Если автомат уперся в тупик (ERROR), значит текущий токен завершен
+            // If the state machine reaches a dead end (ERROR), it means the current token is finished
             if (nextState == State.ERROR && currentState != State.START) {
                 finalizeToken(currentState);
                 currentState = State.START;
-                buffer.setLength(0); // Очищаем буфер
-                continue; // Отправляем ТОТ ЖЕ символ на повторную проверку с состояния START
+                buffer.setLength(0); // Clear buffer
+                continue; // Send the SAME character for re-check from the START state
             }
 
-            // Обработка невалидных символов (одиночный символ, который из START ведет в ERROR)
+            // Handling invalid characters (single character leading from START to ERROR)
             if (currentState == State.START && nextState == State.ERROR) {
                 if (type != CharType.EOF && type != CharType.SPACE && type != CharType.NEWLINE) {
                     WatermelonLang.error(line, "Unexpected character: " + c);
@@ -222,7 +222,7 @@ public class Lexer {
 
             currentState = nextState;
 
-            // Если мы вернулись в START (например, после пробела или \n в комментариях) - чистим буфер
+            // If we returned to START (e.g., after a space or \n in comments) - clear the buffer
             if (currentState == State.START) {
                 buffer.setLength(0);
             } else if (type != CharType.EOF) {
@@ -237,17 +237,17 @@ public class Lexer {
         return tokens;
     }
 
-    // Мгновенная табличная маршрутизация для завершенного токена
+    // Instant table routing for the completed token
     private void finalizeToken(State finalState) {
         TokenType type = acceptingStates[finalState.ordinal()];
 
-        // Если у состояния нет токена (например, это был комментарий), мы его просто игнорируем
+        // If the state has no token (e.g., it was a comment), we just ignore it
         if (type == null) return;
 
         String text = buffer.toString();
         Object literal = null;
 
-        // Определяем финальное значение
+        // Determine the final value
         if (type == TokenType.IDENT) {
             type = keywords.getOrDefault(text, TokenType.IDENT);
         } else if (type == TokenType.INT_LITERAL) {
@@ -255,13 +255,13 @@ public class Lexer {
         } else if (type == TokenType.FLOAT_LITERAL) {
             literal = Double.parseDouble(text);
         } else if (type == TokenType.STRING_LITERAL) {
-            literal = text.substring(1, text.length() - 1); // Убираем кавычки
+            literal = text.substring(1, text.length() - 1); // Remove quotes
         }
 
         tokens.add(new Token(type, text, literal, line));
     }
 
-    // Мгновенная O(1) маршрутизация символов через ASCII-массив
+    // Instant O(1) character routing via ASCII array
     private CharType getCharType(char c) {
         if (c == '\0') return CharType.EOF;
         if (c < 128) return charMap[c];

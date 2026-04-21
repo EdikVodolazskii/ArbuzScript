@@ -1,54 +1,99 @@
-// 1. Проверка объявления функции
-func factorial(n: int) -> int {
-    if (n <= 1) {
-        return 1;
-    }
-    return n * factorial(n - 1);
-}
+// ==========================================
+// 🍉 ARBUZSCRIPT ULTIMATE SHOWCASE 🍉
+// ==========================================
 
-// 2. Проверка переменных и вызова функции
-var num: int = 5;
-var result: int = factorial(num);
+println("=== System Info ===");
+println("Time initialized: " + to_str(time()));
+println("Size of integer: " + to_str(sizeof(int)) + " bytes");
 
-// 3. Проверка цикла while и присваивания
-var counter: int = 10;
-while (counter > 0) {
-    counter = counter - 1;
-}
+// 1. ДЕМОНСТРАЦИЯ БИТОВЫХ ОПЕРАЦИЙ И ПЕРЕМЕННЫХ
+println("\n=== Bitwise & Math ===");
+var flags: int = 1;
+flags = flags shl 3; // 1 << 3 = 8
+println("Flags (1 shl 3): " + to_str(flags));
 
-// 4. Проверка цикла for
-for (var i: int = 0; i < 5; i = i + 1) {
-    var temp: int = i * 2;
-}
+var baseDmg: int = -25;
+var trueDmg: int = abs(baseDmg);
+var maxHp: int = pow(10, 3); // 1000
+println("Max HP calculated: " + to_str(maxHp));
 
-// 5. Проверка логических операций и if-else
-if (result >= 100 and counter == 0) {
-    var success: bool = true;
-} else {
-    var success: bool = false;
-}
-
-
-// 1. Определение класса
-class Hero {
+// 2. ДЕМОНСТРАЦИЯ ООП (КЛАССЫ, МЕТОДЫ, THIS)
+class Entity {
+    var name: str;
     var hp: int;
-    var power: int;
+    var damage: int;
+    var isPlayer: bool;
 
-    func takeDamage(damage: int) -> int {
-        this.hp = this.hp - damage;
+    func init(n: str, h: int, d: int, p: bool) -> void {
+        this.name = n;
+        this.hp = h;
+        this.damage = d;
+        this.isPlayer = p;
+    }
+
+    func takeDamage(amount: int) -> int {
+        this.hp = this.hp - amount;
+        if (this.hp < 0) {
+            this.hp = 0;
+        }
         return this.hp;
     }
+
+    func isAlive() -> bool {
+        return this.hp > 0;
+    }
 }
 
-// 2. Использование класса
-var warrior: Hero = Hero();
-warrior.hp = 100;
-warrior.power = 50;
+println("\n=== Initializing Objects ===");
+println("Size of Entity object: " + to_str(sizeof(Entity)) + " bytes");
 
-// 3. Вызов метода
-var remainingHp: int = warrior.takeDamage(20);
+var hero: Entity = Entity();
+hero.init("ArbuzKnight", 150, 30, true);
 
-// 4. Обычная логика (для проверки совместимости)
-if (remainingHp < 50) {
-    var status: str = "Warning: Low HP";
+var boss: Entity = Entity();
+boss.init("BugLord", 300, 15, false);
+
+println("Hero: " + hero.name + " | HP: " + to_str(hero.hp));
+println("Boss: " + boss.name + " | HP: " + to_str(boss.hp));
+
+// 3. ФУНКЦИИ И ЛОГИКА
+func calculateCrit(dmg: int, multiplier: int) -> int {
+    var finalDmg: int = dmg * multiplier;
+    return min(finalDmg, 999); // Ограничиваем урон до 999
 }
+
+// 4. ДЕМОНСТРАЦИЯ ЦИКЛОВ (WHILE) И УСЛОВИЙ
+println("\n=== BATTLE START ===");
+var round: int = 1;
+
+while (hero.isAlive() and boss.isAlive()) {
+    print("Round ");
+    println(round);
+
+    // Удар героя
+    var heroDmg: int = calculateCrit(hero.damage, 2);
+    boss.takeDamage(heroDmg);
+
+    // Удар босса (если он выжил)
+    if (boss.isAlive()) {
+        hero.takeDamage(boss.damage);
+    }
+
+    round = round + 1;
+}
+
+// 5. ИТОГИ И ЦИКЛ FOR (Который парсер превратит в while)
+println("\n=== Post-Battle Report ===");
+if (hero.isAlive()) {
+    println("VICTORY! " + hero.name + " defeated the boss!");
+} else {
+    println("DEFEAT... " + boss.name + " wins.");
+}
+
+println("\nLooting process:");
+for (var i: int = 0; i < 3; i = i + 1) {
+    print("Collected item #");
+    println(i + 1);
+}
+
+println("\nTest finished successfully!");

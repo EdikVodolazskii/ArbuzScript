@@ -8,10 +8,10 @@ public class Parser {
     private final List<Token> tokens;
     private int current = 0;
 
-    // Конструктор парсера, принимает список токенов от лексера.
+    // Parser constructor, accepts a list of tokens from the lexer.
     public Parser(List<Token> tokens) { this.tokens = tokens; }
 
-    // Главная функция парсера: собирает все токены в список готовых инструкций.
+    // Main parser function: collects all tokens into a list of completed statements.
     public List<Stmt> parse() {
         List<Stmt> statements = new ArrayList<>();
         while (!isAtEnd()) {
@@ -20,7 +20,7 @@ public class Parser {
         return statements;
     }
 
-    // Определяет тип текущей конструкции: класс, объявление или инструкция.
+    // Determines the type of the current construct: class, declaration, or statement.
     private Stmt declaration() {
         try {
             if (match(CLASS)) return classDeclaration();
@@ -33,7 +33,7 @@ public class Parser {
         }
     }
 
-    // Парсит объявление класса, собирая его поля (var) и методы (func).
+    // Parses a class declaration, gathering its fields (var) and methods (func).
     private Stmt classDeclaration() {
         Token name = consume(IDENT, "Expect class name.");
         consume(LBRACE, "Expect '{' before class body.");
@@ -55,7 +55,7 @@ public class Parser {
         return new Stmt.Class(name, fields, methods);
     }
 
-    // Разбирает синтаксис объявления функции: имя, параметры, тип возврата и тело.
+    // Parses function declaration syntax: name, parameters, return type, and body.
     private Stmt function() {
         Token name = consume(IDENT, "Expect function name.");
         consume(LPAREN, "Expect '(' after function name.");
@@ -88,7 +88,7 @@ public class Parser {
         return new Stmt.Function(name, params, paramTypes, returnType, body);
     }
 
-    // Разбирает синтаксис объявления переменной с обязательным указанием типа.
+    // Parses variable declaration syntax with a mandatory type specification.
     private Stmt varDeclaration() {
         Token name = consume(IDENT, "Expect variable name.");
         consume(COLON, "Expect ':' after variable name.");
@@ -106,7 +106,7 @@ public class Parser {
         return new Stmt.Var(name, type, initializer);
     }
 
-    // Распределяет поток по типам инструкций: циклы, условия, возвраты или блоки кода.
+    // Distributes the flow by statement types: loops, conditions, returns, or code blocks.
     private Stmt statement() {
         if (match(FOR)) return forStatement();
         if (match(IF)) return ifStatement();
@@ -116,7 +116,7 @@ public class Parser {
         return expressionStatement();
     }
 
-    // Разбирает цикл for и "распаковывает" его в эквивалентный цикл while для упрощения AST.
+    // Parses a for loop and "unpacks" it into an equivalent while loop to simplify the AST.
     private Stmt forStatement() {
         consume(LPAREN, "Expect '(' after 'for'.");
         Stmt initializer;
@@ -161,7 +161,7 @@ public class Parser {
         return body;
     }
 
-    // Разбирает классическое условие if с опциональной веткой else.
+    // Parses a classic if condition with an optional else branch.
     private Stmt ifStatement() {
         consume(LPAREN, "Expect '(' after 'if'.");
         Expr condition = expression();
@@ -174,7 +174,7 @@ public class Parser {
         return new Stmt.If(condition, thenBranch, elseBranch);
     }
 
-    // Разбирает команду возврата значения из функции.
+    // Parses the return command for a function value.
     private Stmt returnStatement() {
         Token keyword = previous();
         Expr value = null;
@@ -185,7 +185,7 @@ public class Parser {
         return new Stmt.Return(keyword, value);
     }
 
-    // Разбирает базовый цикл while с условием.
+    // Parses a basic while loop with a condition.
     private Stmt whileStatement() {
         consume(LPAREN, "Expect '(' after 'while'.");
         Expr condition = expression();
@@ -194,7 +194,7 @@ public class Parser {
         return new Stmt.While(condition, body);
     }
 
-    // Считывает список инструкций, заключенных в фигурные скобки.
+    // Reads a list of statements enclosed in curly braces.
     private List<Stmt> block() {
         List<Stmt> statements = new ArrayList<>();
         while (!check(RBRACE) && !isAtEnd()) {
@@ -204,19 +204,19 @@ public class Parser {
         return statements;
     }
 
-    // Оборачивает обычное выражение (например, вызов функции или присваивание) в формат инструкции.
+    // Wraps a regular expression (e.g., function call or assignment) into a statement format.
     private Stmt expressionStatement() {
         Expr expr = expression();
         consume(SEMICOLON, "Expect ';' after expression.");
         return new Stmt.Expression(expr);
     }
 
-    // Точка входа для парсинга любых выражений.
+    // Entry point for parsing any expressions.
     private Expr expression() {
         return assignment();
     }
 
-    // Разбирает операцию присваивания переменной или свойству объекта.
+    // Parses an assignment operation to a variable or an object property.
     private Expr assignment() {
         Expr expr = logicalOr();
         if (match(ASSIGN)) {
@@ -236,7 +236,7 @@ public class Parser {
         return expr;
     }
 
-    // Разбирает логическое ИЛИ.
+    // Parses logical OR.
     private Expr logicalOr() {
         Expr expr = logicalAnd();
         while (match(OR_KW, OR_OR)) {
@@ -247,7 +247,7 @@ public class Parser {
         return expr;
     }
 
-    // Разбирает логическое И.
+    // Parses logical AND.
     private Expr logicalAnd() {
         Expr expr = equality();
         while (match(AND_KW, AND_AND)) {
@@ -258,7 +258,7 @@ public class Parser {
         return expr;
     }
 
-    // Разбирает проверки на равенство и неравенство.
+    // Parses equality and inequality checks.
     private Expr equality() {
         Expr expr = comparison();
         while (match(BANG_EQUAL, EQUAL_EQUAL)) {
@@ -269,10 +269,21 @@ public class Parser {
         return expr;
     }
 
-    // Разбирает операторы сравнения больше/меньше.
+    // Parses comparison operators (greater than/less than).
     private Expr comparison() {
-        Expr expr = term();
+        Expr expr = bitwise();
         while (match(GREATER, GREATER_EQUAL, LESS, LESS_EQUAL)) {
+            Token operator = previous();
+            Expr right = bitwise();
+            expr = new Expr.Binary(expr, operator, right);
+        }
+        return expr;
+    }
+
+    // NEW METHOD: Parses bitwise operations
+    private Expr bitwise() {
+        Expr expr = term();
+        while (match(BIT_AND, BIT_OR, XOR, SHL, SHR)) {
             Token operator = previous();
             Expr right = term();
             expr = new Expr.Binary(expr, operator, right);
@@ -280,7 +291,7 @@ public class Parser {
         return expr;
     }
 
-    // Разбирает математические операции сложения и вычитания.
+    // Parses mathematical addition and subtraction operations.
     private Expr term() {
         Expr expr = factor();
         while (match(MINUS, PLUS)) {
@@ -291,7 +302,7 @@ public class Parser {
         return expr;
     }
 
-    // Разбирает математические операции умножения и деления.
+    // Parses mathematical multiplication and division operations.
     private Expr factor() {
         Expr expr = unary();
         while (match(SLASH, STAR)) {
@@ -302,7 +313,7 @@ public class Parser {
         return expr;
     }
 
-    // Разбирает унарные операции (отрицание числа или логическое НЕ).
+    // Parses unary operations (numerical negation or logical NOT).
     private Expr unary() {
         if (match(BANG, MINUS, NOT_KW)) {
             Token operator = previous();
@@ -312,7 +323,7 @@ public class Parser {
         return call();
     }
 
-    // Распознает вызов функции или обращение к свойству объекта через точку.
+    // Recognizes a function call or access to an object property via a dot.
     private Expr call() {
         Expr expr = primary();
         while (true) {
@@ -328,7 +339,7 @@ public class Parser {
         return expr;
     }
 
-    // Считывает список аргументов, переданных в функцию при ее вызове.
+    // Reads the list of arguments passed to a function during its call.
     private Expr finishCall(Expr callee) {
         List<Expr> arguments = new ArrayList<>();
         if (!check(RPAREN)) {
@@ -340,7 +351,7 @@ public class Parser {
         return new Expr.Call(callee, paren, arguments);
     }
 
-    // Парсит базовые "атомарные" элементы, включая указатель this.
+    // Parses basic "atomic" elements, including the 'this' pointer.
     private Expr primary() {
         if (match(FALSE)) return new Expr.Literal(false);
         if (match(TRUE)) return new Expr.Literal(true);
@@ -348,7 +359,12 @@ public class Parser {
             return new Expr.Literal(previous().literal);
         }
         if (match(THIS)) return new Expr.This(previous());
-        if (match(IDENT)) return new Expr.Variable(previous());
+        
+        // --- UPDATED: Built-in types are now considered valid expressions (for sizeof) ---
+        if (match(IDENT, INT_TYPE, FLOAT_TYPE, BOOL_TYPE, STR_TYPE, CHAR_TYPE, BYTE_TYPE)) {
+            return new Expr.Variable(previous());
+        }
+        
         if (match(LPAREN)) {
             Expr expr = expression();
             consume(RPAREN, "Expect ')' after expression.");
@@ -357,7 +373,7 @@ public class Parser {
         throw error(peek(), "Expect expression.");
     }
 
-    // Проверяет текущий токен на совпадение с одним из переданных типов и "поглощает" его в случае успеха.
+    // Checks the current token for a match with one of the passed types and "consumes" it if successful.
     private boolean match(TokenType... types) {
         for (TokenType type : types) {
             if (check(type)) {
@@ -368,40 +384,40 @@ public class Parser {
         return false;
     }
 
-    // Требует наличия токена определенного типа, иначе выбрасывает синтаксическую ошибку.
+    // Requires a token of a specific type, otherwise throws a syntax error.
     private Token consume(TokenType type, String message) {
         if (check(type)) return advance();
         throw error(peek(), message);
     }
 
-    // Проверяет тип текущего токена, не сдвигая указатель парсера.
+    // Checks the type of the current token without moving the parser pointer.
     private boolean check(TokenType type) {
         if (isAtEnd()) return false;
         return peek().type == type;
     }
 
-    // Сдвигает указатель на следующий токен и возвращает предыдущий.
+    // Advances the pointer to the next token and returns the previous one.
     private Token advance() {
         if (!isAtEnd()) current++;
         return previous();
     }
 
-    // Возвращает true, если достигнут конец файла (токен EOF).
+    // Returns true if the end of the file (EOF token) has been reached.
     private boolean isAtEnd() { return peek().type == EOF; }
 
-    // Возвращает токен, на который сейчас указывает парсер.
+    // Returns the token the parser is currently pointing to.
     private Token peek() { return tokens.get(current); }
 
-    // Возвращает последний успешно обработанный токен.
+    // Returns the last successfully processed token.
     private Token previous() { return tokens.get(current - 1); }
 
-    // Формирует и возвращает объект ошибки с указанием строки и сообщения.
+    // Creates and returns an error object with the line number and message.
     private ParseError error(Token token, String message) {
         WatermelonLang.error(token.line, message);
         return new ParseError();
     }
 
-    // Пропускает токены до начала следующей инструкции, чтобы продолжить работу после ошибки.
+    // Skips tokens until the start of the next statement to continue processing after an error.
     private void synchronize() {
         advance();
         while (!isAtEnd()) {
