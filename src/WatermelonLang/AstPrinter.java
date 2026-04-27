@@ -7,6 +7,21 @@ public class AstPrinter implements Expr.Visitor<String> {
     }
 
     @Override
+    public String visitArrayLiteralExpr(Expr.ArrayLiteral expr) {
+        return parenthesize("array", expr.elements.toArray(new Expr[0]));
+    }
+
+    @Override
+    public String visitGetIndexExpr(Expr.GetIndex expr) {
+        return parenthesize("get_index", expr.object, expr.index);
+    }
+
+    @Override
+    public String visitSetIndexExpr(Expr.SetIndex expr) {
+        return parenthesize("set_index", expr.object, expr.index, expr.value);
+    }
+
+    @Override
     public String visitBinaryExpr(Expr.Binary expr) {
         return parenthesize(expr.operator.value, expr.left, expr.right);
     }

@@ -23,6 +23,8 @@ public class Transpiler implements Expr.Visitor<String>, Stmt.Visitor<String> {
         cCode.append("#include <string.h>\n");
         cCode.append("#include <time.h>\n\n");
 
+        cCode.append("typedef char* str;\n\n");
+
         // Polymorphic print implementation via C macros
         cCode.append("#define print(x) _Generic((x), \\\n" +
                      "    int: printf(\"%d\", x), \\\n" +
@@ -90,6 +92,24 @@ public class Transpiler implements Expr.Visitor<String>, Stmt.Visitor<String> {
         }
     }
 
+    // Converts "int[][]" to "int**", and "str[]" to "char**"
+    private String resolveCType(String watermelonType) {
+        if (watermelonType == null) return "void";
+        String base = watermelonType.replace("[]", "");
+        String pointers = watermelonType.substring(base.length()).replace("[]", "*");
+        
+        String cBase = base;
+        switch(base) {
+            case "int": cBase = "int"; break;
+            case "float": cBase = "double"; break;
+            case "bool": cBase = "bool"; break;
+            case "str": cBase = "char*"; break;
+            case "char": cBase = "char"; break;
+            case "byte": cBase = "unsigned char"; break;
+        }
+        return cBase + pointers;
+    }
+
     // --- STATEMENT GENERATION (STMT) ---
 
     @Override
@@ -111,11 +131,13 @@ public class Transpiler implements Expr.Visitor<String>, Stmt.Visitor<String> {
     @Override
     public String visitFunctionStmt(Stmt.Function stmt) {
         StringBuilder builder = new StringBuilder();
-        builder.append(toCType(stmt.returnType.type)).append(" ").append(stmt.name.value).append("(");
+        String returnType = stmt.returnType.type == TokenType.IDENT ? resolveCType(stmt.returnType.value) : toCType(stmt.returnType.type);
+        builder.append(returnType).append(" ").append(stmt.name.value).append("(");
         
         // Function parameters
         for (int i = 0; i < stmt.params.size(); i++) {
-            builder.append(toCType(stmt.paramTypes.get(i).type)).append(" ").append(stmt.params.get(i).value);
+            String paramType = stmt.paramTypes.get(i).type == TokenType.IDENT ? resolveCType(stmt.paramTypes.get(i).value) : toCType(stmt.paramTypes.get(i).type);
+            builder.append(paramType).append(" ").append(stmt.params.get(i).value);
             if (i < stmt.params.size() - 1) builder.append(", ");
         }
         builder.append(") ");
@@ -152,16 +174,30 @@ public class Transpiler implements Expr.Visitor<String>, Stmt.Visitor<String> {
 
     @Override
     public String visitVarStmt(Stmt.Var stmt) {
-        // Determine the type (built-in int/str or custom class)
-        String type = stmt.type.type == TokenType.IDENT ? stmt.type.value : toCType(stmt.type.type);
+        String rawType = stmt.type.type == TokenType.IDENT ? stmt.type.value : toCType(stmt.type.type);
+        String cType = resolveCType(rawType); 
         
-        // Store the variable type for correct method calls later
-        varTypes.put(stmt.name.value, type);
+        varTypes.put(stmt.name.value, rawType);
 
         if (stmt.initializer != null) {
-            return type + " " + stmt.name.value + " = " + transpile(stmt.initializer) + ";";
+            // Если это инициализация массива [1, 2, 3]
+            if (stmt.initializer instanceof Expr.ArrayLiteral) {
+                Expr.ArrayLiteral arr = (Expr.ArrayLiteral) stmt.initializer;
+                String cleanType = cType.replace("*", ""); // Убираем звездочки (получаем просто int)
+                
+                StringBuilder brackets = new StringBuilder("[]"); // Первая размерность всегда может быть пустой в Си
+                
+                // МАГИЯ: Если это двумерный массив (матрица), считаем размер внутренней строки!
+                if (!arr.elements.isEmpty() && arr.elements.get(0) instanceof Expr.ArrayLiteral) {
+                    Expr.ArrayLiteral inner = (Expr.ArrayLiteral) arr.elements.get(0);
+                    brackets.append("[").append(inner.elements.size()).append("]"); // Добавляем [3]
+                }
+                
+                return cleanType + " " + stmt.name.value + brackets.toString() + " = " + transpile(stmt.initializer) + ";";
+            }
+            return cType + " " + stmt.name.value + " = " + transpile(stmt.initializer) + ";";
         }
-        return type + " " + stmt.name.value + " = {0};"; // In C, it is better to initialize empty structures with zeros
+        return cType + " " + stmt.name.value + " = {0};";
     }
 
     @Override
@@ -170,6 +206,28 @@ public class Transpiler implements Expr.Visitor<String>, Stmt.Visitor<String> {
     }
 
     // --- EXPRESSION GENERATION (EXPR) ---
+
+    @Override
+    public String visitArrayLiteralExpr(Expr.ArrayLiteral expr) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("{");
+        for (int i = 0; i < expr.elements.size(); i++) {
+            builder.append(transpile(expr.elements.get(i)));
+            if (i < expr.elements.size() - 1) builder.append(", ");
+        }
+        builder.append("}");
+        return builder.toString();
+    }
+
+    @Override
+    public String visitGetIndexExpr(Expr.GetIndex expr) {
+        return transpile(expr.object) + "[" + transpile(expr.index) + "]";
+    }
+
+    @Override
+    public String visitSetIndexExpr(Expr.SetIndex expr) {
+        return transpile(expr.object) + "[" + transpile(expr.index) + "] = " + transpile(expr.value);
+    }
 
     @Override
     public String visitAssignExpr(Expr.Assign expr) {
@@ -283,7 +341,7 @@ public class Transpiler implements Expr.Visitor<String>, Stmt.Visitor<String> {
         // 1. Generate the structure
         builder.append("typedef struct {\n");
         for (Stmt.Var field : stmt.fields) {
-            String type = field.type.type == TokenType.IDENT ? field.type.value : toCType(field.type.type);
+            String type = field.type.type == TokenType.IDENT ? resolveCType(field.type.value) : toCType(field.type.type);
             builder.append("    ").append(type).append(" ").append(field.name.value).append(";\n");
         }
         builder.append("} ").append(stmt.name.value).append(";\n\n");
@@ -291,7 +349,7 @@ public class Transpiler implements Expr.Visitor<String>, Stmt.Visitor<String> {
         // 2. Generate methods (as global C functions with a 'this' pointer)
         currentClass = stmt.name.value;
         for (Stmt.Function method : stmt.methods) {
-            String returnType = method.returnType.type == TokenType.IDENT ? method.returnType.value : toCType(method.returnType.type);
+            String returnType = method.returnType.type == TokenType.IDENT ? resolveCType(method.returnType.value) : toCType(method.returnType.type);
             builder.append(returnType).append(" ").append(currentClass).append("_").append(method.name.value).append("(");
             
             // FIRST ARGUMENT: 'this' pointer
@@ -299,7 +357,7 @@ public class Transpiler implements Expr.Visitor<String>, Stmt.Visitor<String> {
             if (!method.params.isEmpty()) builder.append(", ");
             
             for (int i = 0; i < method.params.size(); i++) {
-                String paramType = method.paramTypes.get(i).type == TokenType.IDENT ? method.paramTypes.get(i).value : toCType(method.paramTypes.get(i).type);
+                String paramType = method.paramTypes.get(i).type == TokenType.IDENT ? resolveCType(method.paramTypes.get(i).value) : toCType(method.paramTypes.get(i).type);
                 builder.append(paramType).append(" ").append(method.params.get(i).value);
                 if (i < method.params.size() - 1) builder.append(", ");
             }

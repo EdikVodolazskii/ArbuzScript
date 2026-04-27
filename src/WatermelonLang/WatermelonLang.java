@@ -93,6 +93,45 @@ public class WatermelonLang {
         // 5. Result
         System.out.println("Success! Code is semantically correct. Parsed " + statements.size() + " statements.");
         System.out.println("Generated 'output.c' successfully! 🎉");
+
+        // ==========================================
+        // 🍉 АВТОМАТИЧЕСКАЯ СБОРКА И ЗАПУСК (GCC) 🍉
+        // ==========================================
+        System.out.println("\n[Compiling with GCC...]");
+        try {
+            ProcessBuilder compilePb = new ProcessBuilder("gcc", "output.c", "-o", "program.exe");
+            compilePb.redirectErrorStream(true); // Сливаем ошибки и обычный вывод вместе
+            Process compileProcess = compilePb.start();
+            
+            // Читаем вывод GCC СРАЗУ, чтобы буфер не переполнился и процесс не завис!
+            java.io.BufferedReader compileReader = new java.io.BufferedReader(new java.io.InputStreamReader(compileProcess.getInputStream()));
+            String compileLine;
+            while ((compileLine = compileReader.readLine()) != null) {
+                System.out.println(compileLine); // Печатаем ошибки GCC в нашу консоль
+            }
+            
+            int compileResult = compileProcess.waitFor();
+            if (compileResult != 0) {
+                System.err.println("GCC Compilation failed! See errors above.");
+                return;
+            }
+            
+            System.out.println("[Running program.exe...]\n");
+            
+            Process runProcess = new ProcessBuilder("program.exe").start();
+            java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(runProcess.getInputStream()));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                System.out.println(line);
+            }
+            
+            runProcess.waitFor();
+            System.out.println("\n[Process finished]");
+            
+        } catch (Exception e) {
+            System.err.println("Execution failed. Make sure 'gcc' is installed and added to PATH.");
+            e.printStackTrace();
+        }
     }
 
     // --- ERROR HANDLING ---

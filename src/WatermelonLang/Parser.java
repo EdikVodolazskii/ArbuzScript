@@ -67,7 +67,17 @@ public class Parser {
                 params.add(consume(IDENT, "Expect parameter name."));
                 consume(COLON, "Expect ':' after parameter name.");
                 if (match(INT_TYPE, FLOAT_TYPE, BOOL_TYPE, STR_TYPE, CHAR_TYPE, BYTE_TYPE, IDENT)) {
-                    paramTypes.add(previous());
+                    Token baseType = previous();
+                    StringBuilder typeName = new StringBuilder(baseType.value);
+                    while (match(LBRACKET)) {
+                        consume(RBRACKET, "Expect ']' after '['.");
+                        typeName.append("[]");
+                    }
+                    if (typeName.length() > baseType.value.length()) {
+                        paramTypes.add(new Token(TokenType.IDENT, typeName.toString(), null, baseType.line));
+                    } else {
+                        paramTypes.add(baseType);
+                    }
                 } else {
                     throw error(peek(), "Expect parameter type.");
                 }
@@ -78,7 +88,17 @@ public class Parser {
         consume(ARROW, "Expect '->' before return type.");
         Token returnType;
         if (match(INT_TYPE, FLOAT_TYPE, BOOL_TYPE, STR_TYPE, CHAR_TYPE, BYTE_TYPE, IDENT)) {
-            returnType = previous();
+            Token baseType = previous();
+            StringBuilder typeName = new StringBuilder(baseType.value);
+            while (match(LBRACKET)) {
+                consume(RBRACKET, "Expect ']' after '['.");
+                typeName.append("[]");
+            }
+            if (typeName.length() > baseType.value.length()) {
+                returnType = new Token(TokenType.IDENT, typeName.toString(), null, baseType.line);
+            } else {
+                returnType = baseType;
+            }
         } else {
             throw error(peek(), "Expect return type.");
         }
@@ -94,7 +114,17 @@ public class Parser {
         consume(COLON, "Expect ':' after variable name.");
         Token type;
         if (match(INT_TYPE, FLOAT_TYPE, BOOL_TYPE, STR_TYPE, CHAR_TYPE, BYTE_TYPE, IDENT)) {
-            type = previous();
+            Token baseType = previous();
+            StringBuilder typeName = new StringBuilder(baseType.value);
+            while (match(LBRACKET)) {
+                consume(RBRACKET, "Expect ']' after '['.");
+                typeName.append("[]");
+            }
+            if (typeName.length() > baseType.value.length()) {
+                type = new Token(TokenType.IDENT, typeName.toString(), null, baseType.line);
+            } else {
+                type = baseType;
+            }
         } else {
             throw error(peek(), "Expect variable type.");
         }
@@ -229,6 +259,9 @@ public class Parser {
             } else if (expr instanceof Expr.Get) {
                 Expr.Get get = (Expr.Get)expr;
                 return new Expr.Set(get.object, get.name, value);
+            } else if (expr instanceof Expr.GetIndex) {
+                Expr.GetIndex get = (Expr.GetIndex)expr;
+                return new Expr.SetIndex(get.object, get.index, value);
             }
             
             error(equals, "Invalid assignment target.");
@@ -332,6 +365,10 @@ public class Parser {
             } else if (match(DOT)) {
                 Token name = consume(IDENT, "Expect property name after '.'.");
                 expr = new Expr.Get(expr, name);
+            } else if (match(LBRACKET)) {
+                Expr index = expression();
+                consume(RBRACKET, "Expect ']' after index.");
+                expr = new Expr.GetIndex(expr, index);
             } else {
                 break;
             }
@@ -363,6 +400,17 @@ public class Parser {
         // --- UPDATED: Built-in types are now considered valid expressions (for sizeof) ---
         if (match(IDENT, INT_TYPE, FLOAT_TYPE, BOOL_TYPE, STR_TYPE, CHAR_TYPE, BYTE_TYPE)) {
             return new Expr.Variable(previous());
+        }
+
+        if (match(LBRACKET)) {
+            List<Expr> elements = new java.util.ArrayList<>();
+            if (!check(RBRACKET)) {
+                do {
+                    elements.add(expression());
+                } while (match(COMMA));
+            }
+            consume(RBRACKET, "Expect ']' after array elements.");
+            return new Expr.ArrayLiteral(elements);
         }
         
         if (match(LPAREN)) {

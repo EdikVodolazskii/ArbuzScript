@@ -1,8 +1,12 @@
 package WatermelonLang;
+
 import java.util.List;
 
 abstract class Expr {
   interface Visitor<R> {
+    R visitArrayLiteralExpr(ArrayLiteral expr);
+    R visitGetIndexExpr(GetIndex expr);
+    R visitSetIndexExpr(SetIndex expr);
     R visitAssignExpr(Assign expr);
     R visitBinaryExpr(Binary expr);
     R visitCallExpr(Call expr);
@@ -14,6 +18,51 @@ abstract class Expr {
     R visitLogicalExpr(Logical expr);
     R visitUnaryExpr(Unary expr);
     R visitVariableExpr(Variable expr);
+  }
+
+  static class ArrayLiteral extends Expr {
+    ArrayLiteral(List<Expr> elements) {
+      this.elements = elements;
+    }
+
+    @Override
+    <R> R accept(Visitor<R> visitor) {
+      return visitor.visitArrayLiteralExpr(this);
+    }
+
+    final List<Expr> elements;
+  }
+
+  static class GetIndex extends Expr {
+    GetIndex(Expr object, Expr index) {
+      this.object = object;
+      this.index = index;
+    }
+
+    @Override
+    <R> R accept(Visitor<R> visitor) {
+      return visitor.visitGetIndexExpr(this);
+    }
+
+    final Expr object;
+    final Expr index;
+  }
+
+  static class SetIndex extends Expr {
+    SetIndex(Expr object, Expr index, Expr value) {
+      this.object = object;
+      this.index = index;
+      this.value = value;
+    }
+
+    @Override
+    <R> R accept(Visitor<R> visitor) {
+      return visitor.visitSetIndexExpr(this);
+    }
+
+    final Expr object;
+    final Expr index;
+    final Expr value;
   }
 
   static class Assign extends Expr {

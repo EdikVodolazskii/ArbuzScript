@@ -174,6 +174,35 @@ public class TypeChecker implements Expr.Visitor<TokenType>, Stmt.Visitor<Void> 
 
     // --- IMPLEMENTATION OF CHECKS FOR EXPRESSIONS (EXPR) ---
 
+    @Override
+    public TokenType visitArrayLiteralExpr(Expr.ArrayLiteral expr) {
+        // Check all elements inside [1, 2, 3] to find errors within them
+        for (Expr el : expr.elements) check(el);
+        return TokenType.IDENT; // Trust the C compiler for strict array type checking
+    }
+
+    @Override
+    public TokenType visitGetIndexExpr(Expr.GetIndex expr) {
+        check(expr.object); // Check the array itself
+        TokenType indexType = check(expr.index); // Check the index
+        
+        if (indexType != TokenType.INT_TYPE && indexType != TokenType.IDENT) {
+            WatermelonLang.error(0, "Array index must be an integer.");
+        }
+        return TokenType.IDENT; 
+    }
+
+    @Override
+    public TokenType visitSetIndexExpr(Expr.SetIndex expr) {
+        check(expr.object);
+        TokenType indexType = check(expr.index);
+        
+        if (indexType != TokenType.INT_TYPE && indexType != TokenType.IDENT) {
+            WatermelonLang.error(0, "Array index must be an integer.");
+        }
+        return check(expr.value); // Return the type of the assigned value
+    }
+
     // Determine the type of a primitive value (number, string, bool)
     @Override
     public TokenType visitLiteralExpr(Expr.Literal expr) {

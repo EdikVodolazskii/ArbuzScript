@@ -1,23 +1,51 @@
 // ==========================================
-// 🍉 ARBUZSCRIPT ULTIMATE SHOWCASE 🍉
+// 🍉 ARBUZSCRIPT ULTIMATE SHOWCASE V2 🍉
 // ==========================================
 
-println("=== System Info ===");
-println("Time initialized: " + to_str(time()));
+println("=== 1. System Info & StdLib ===");
+println("Time initialized (timestamp): " + to_str(time()));
 println("Size of integer: " + to_str(sizeof(int)) + " bytes");
+println("Size of string pointer: " + to_str(sizeof(str)) + " bytes");
 
 // 1. ДЕМОНСТРАЦИЯ БИТОВЫХ ОПЕРАЦИЙ И ПЕРЕМЕННЫХ
-println("\n=== Bitwise & Math ===");
+println("\n=== 2. Bitwise & Advanced Math ===");
 var flags: int = 1;
 flags = flags shl 3; // 1 << 3 = 8
 println("Flags (1 shl 3): " + to_str(flags));
 
+var mask: int = 15; // Бинарно: 0000 1111
+var secret: int = 255 bit_and mask;
+println("255 bit_and 15 = " + to_str(secret)); // Должно быть 15
+
 var baseDmg: int = -25;
 var trueDmg: int = abs(baseDmg);
 var maxHp: int = pow(10, 3); // 1000
+var root: float = sqrt(144.0); // 12.0
 println("Max HP calculated: " + to_str(maxHp));
+println("Square root of 144: " + to_str(root));
 
-// 2. ДЕМОНСТРАЦИЯ ООП (КЛАССЫ, МЕТОДЫ, THIS)
+// 2. ДЕМОНСТРАЦИЯ ОДНОМЕРНЫХ И ДВУМЕРНЫХ МАССИВОВ
+println("\n=== 3. Arrays (1D & 2D) ===");
+var list: int[] = [10, 20, 30];
+var val: int = list[1];
+println("1D Array element at index 1: " + to_str(val));
+
+list[2] = val + 5;
+println("Updated 1D element at index 2: " + to_str(list[2]));
+
+// Двумерный массив (Матрица 3x3)
+var matrix: int[][] = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9]
+];
+println("Matrix center value [1][1]: " + to_str(matrix[1][1])); // Должно быть 5
+matrix[2][2] = 99;
+println("Modified matrix bottom-right [2][2]: " + to_str(matrix[2][2])); // Должно быть 99
+
+
+// 3. ДЕМОНСТРАЦИЯ ООП (КЛАССЫ, МЕТОДЫ, THIS)
+println("\n=== 4. OOP & Objects ===");
 class Entity {
     var name: str;
     var hp: int;
@@ -44,7 +72,6 @@ class Entity {
     }
 }
 
-println("\n=== Initializing Objects ===");
 println("Size of Entity object: " + to_str(sizeof(Entity)) + " bytes");
 
 var hero: Entity = Entity();
@@ -56,14 +83,14 @@ boss.init("BugLord", 300, 15, false);
 println("Hero: " + hero.name + " | HP: " + to_str(hero.hp));
 println("Boss: " + boss.name + " | HP: " + to_str(boss.hp));
 
-// 3. ФУНКЦИИ И ЛОГИКА
+// 4. ФУНКЦИИ И ЛОГИКА
 func calculateCrit(dmg: int, multiplier: int) -> int {
     var finalDmg: int = dmg * multiplier;
     return min(finalDmg, 999); // Ограничиваем урон до 999
 }
 
-// 4. ДЕМОНСТРАЦИЯ ЦИКЛОВ (WHILE) И УСЛОВИЙ
-println("\n=== BATTLE START ===");
+// 5. ДЕМОНСТРАЦИЯ ЦИКЛОВ (WHILE) И УСЛОВИЙ
+println("\n=== 5. BATTLE SIMULATION ===");
 var round: int = 1;
 
 while (hero.isAlive() and boss.isAlive()) {
@@ -82,18 +109,18 @@ while (hero.isAlive() and boss.isAlive()) {
     round = round + 1;
 }
 
-// 5. ИТОГИ И ЦИКЛ FOR (Который парсер превратит в while)
-println("\n=== Post-Battle Report ===");
+// 6. ИТОГИ И ЦИКЛ FOR
+println("\n=== 6. Post-Battle Report ===");
 if (hero.isAlive()) {
     println("VICTORY! " + hero.name + " defeated the boss!");
 } else {
     println("DEFEAT... " + boss.name + " wins.");
 }
 
-println("\nLooting process:");
+println("\nLooting process (for loop):");
 for (var i: int = 0; i < 3; i = i + 1) {
     print("Collected item #");
     println(i + 1);
 }
 
-println("\nTest finished successfully!");
+println("\n🍉 Test finished successfully! 🍉");

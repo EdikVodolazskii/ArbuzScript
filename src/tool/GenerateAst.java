@@ -10,6 +10,9 @@ public class GenerateAst {
         String outputDir = "src/WatermelonLang";
 
         defineAst(outputDir, "Expr", Arrays.asList(
+                "ArrayLiteral : List<Expr> elements",
+                "GetIndex     : Expr object, Expr index",
+                "SetIndex     : Expr object, Expr index, Expr value",
                 "Assign   : Token name, Expr value",
                 "Binary   : Expr left, Token operator, Expr right",
                 "Call     : Expr callee, Token paren, List<Expr> arguments",
