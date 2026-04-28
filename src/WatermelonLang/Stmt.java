@@ -111,10 +111,11 @@ abstract class Stmt {
   }
 
   static class Var extends Stmt {
-    Var(Token name, Token type, Expr initializer) {
+    Var(Token name, Token type, Expr initializer, boolean isConst) {
       this.name = name;
       this.type = type;
       this.initializer = initializer;
+      this.isConst = isConst;
     }
 
     @Override
@@ -125,6 +126,7 @@ abstract class Stmt {
     final Token name;
     final Token type;
     final Expr initializer;
+    final boolean isConst;
   }
 
   static class While extends Stmt {

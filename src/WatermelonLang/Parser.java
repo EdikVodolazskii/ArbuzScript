@@ -25,7 +25,8 @@ public class Parser {
         try {
             if (match(CLASS)) return classDeclaration();
             if (match(FUNC)) return function();
-            if (match(VAR, LET)) return varDeclaration();
+            if (match(VAR)) return varDeclaration(false);
+            if (match(LET)) return varDeclaration(true);
             return statement();
         } catch (ParseError error) {
             synchronize();
@@ -42,8 +43,10 @@ public class Parser {
         List<Stmt.Function> methods = new ArrayList<>();
 
         while (!check(RBRACE) && !isAtEnd()) {
-            if (match(VAR, LET)) {
-                fields.add((Stmt.Var) varDeclaration());
+            if (match(VAR)) {
+                fields.add((Stmt.Var) varDeclaration(false));
+            } else if (match(LET)) {
+                fields.add((Stmt.Var) varDeclaration(true));
             } else if (match(FUNC)) {
                 methods.add((Stmt.Function) function());
             } else {
@@ -109,17 +112,20 @@ public class Parser {
     }
 
     // Parses variable declaration syntax with a mandatory type specification.
-    private Stmt varDeclaration() {
+    private Stmt varDeclaration(boolean isConst) {
         Token name = consume(IDENT, "Expect variable name.");
         consume(COLON, "Expect ':' after variable name.");
+
         Token type;
         if (match(INT_TYPE, FLOAT_TYPE, BOOL_TYPE, STR_TYPE, CHAR_TYPE, BYTE_TYPE, IDENT)) {
             Token baseType = previous();
             StringBuilder typeName = new StringBuilder(baseType.value);
+            
             while (match(LBRACKET)) {
                 consume(RBRACKET, "Expect ']' after '['.");
                 typeName.append("[]");
             }
+            
             if (typeName.length() > baseType.value.length()) {
                 type = new Token(TokenType.IDENT, typeName.toString(), null, baseType.line);
             } else {
@@ -128,12 +134,15 @@ public class Parser {
         } else {
             throw error(peek(), "Expect variable type.");
         }
+
         Expr initializer = null;
         if (match(ASSIGN)) {
             initializer = expression();
         }
+
         consume(SEMICOLON, "Expect ';' after variable declaration.");
-        return new Stmt.Var(name, type, initializer);
+        
+        return new Stmt.Var(name, type, initializer, isConst);
     }
 
     // Distributes the flow by statement types: loops, conditions, returns, or code blocks.
@@ -152,8 +161,10 @@ public class Parser {
         Stmt initializer;
         if (match(SEMICOLON)) {
             initializer = null;
-        } else if (match(VAR, LET)) {
-            initializer = varDeclaration();
+        } else if (match(VAR)) {
+            initializer = varDeclaration(false);
+        } else if (match(LET)) {
+            initializer = varDeclaration(true);
         } else {
             initializer = expressionStatement();
         }

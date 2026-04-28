@@ -9,6 +9,7 @@ public class TypeChecker implements Expr.Visitor<TokenType>, Stmt.Visitor<Void> 
 
     private final Stack<Map<String, TokenType>> scopes = new Stack<>();
     private final Map<String, Stmt.Function> functions = new HashMap<>();
+    private final java.util.Set<String> constants = new java.util.HashSet<>();
     // --- NEW FIELDS FOR CLASSES ---
     private final Map<String, Stmt.Class> classes = new HashMap<>();
     private String currentClass = null; // Stores the name of the class we are currently in
@@ -114,11 +115,23 @@ public class TypeChecker implements Expr.Visitor<TokenType>, Stmt.Visitor<Void> 
         if (stmt.initializer != null) {
             TokenType initType = check(stmt.initializer);
             // Ignore strict check if the value comes from a class/object (IDENT)
-            if (initType != declaredType && initType != null && initType != TokenType.IDENT && declaredType != TokenType.IDENT) {
+            boolean isTypeMismatch = initType != declaredType && initType != null && initType != TokenType.IDENT && declaredType != TokenType.IDENT;
+            
+            // Special case: allow int to byte assignment
+            if (declaredType == TokenType.BYTE_TYPE && initType == TokenType.INT_TYPE) {
+                isTypeMismatch = false;
+            }
+
+            if (isTypeMismatch) {
                 WatermelonLang.error(stmt.name.line, "Type mismatch. Cannot assign " + initType + " to " + declaredType);
             }
         }
         declare(stmt.name, declaredType);
+
+        if (stmt.isConst) {
+            constants.add(stmt.name.value);
+        }
+
         return null;
     }
 
@@ -232,10 +245,20 @@ public class TypeChecker implements Expr.Visitor<TokenType>, Stmt.Visitor<Void> 
     // Check assignment
     @Override
     public TokenType visitAssignExpr(Expr.Assign expr) {
+        if (constants.contains(expr.name.value)) {
+            WatermelonLang.error(expr.name.line, "Compilation Error: Cannot reassign constant '" + expr.name.value + "'.");
+        }
+
         TokenType varType = getVarType(expr.name);
         TokenType valType = check(expr.value);
-        // Ignore strict check if the value comes from a class/object (IDENT)
-        if (varType != null && valType != null && varType != valType && valType != TokenType.IDENT && varType != TokenType.IDENT) {
+        
+        // Special case: allow int to byte assignment
+        boolean isTypeMismatch = varType != null && valType != null && varType != valType && valType != TokenType.IDENT && varType != TokenType.IDENT;
+        if (varType == TokenType.BYTE_TYPE && valType == TokenType.INT_TYPE) {
+            isTypeMismatch = false;
+        }
+
+        if (isTypeMismatch) {
             WatermelonLang.error(expr.name.line, "Type mismatch in assignment. Expected " + varType);
         }
         return varType;

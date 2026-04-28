@@ -30,6 +30,9 @@ public class Transpiler implements Expr.Visitor<String>, Stmt.Visitor<String> {
                      "    int: printf(\"%d\", x), \\\n" +
                      "    double: printf(\"%g\", x), \\\n" +
                      "    char*: printf(\"%s\", x), \\\n" +
+                     "    const char*: printf(\"%s\", x), \\\n" +
+                     "    char: printf(\"%c\", x), \\\n" +
+                     "    unsigned char: printf(\"%u\", x), \\\n" +
                      "    default: printf(\"unknown\") \\\n" +
                      ")\n");
         
@@ -105,7 +108,7 @@ public class Transpiler implements Expr.Visitor<String>, Stmt.Visitor<String> {
             case "bool": cBase = "bool"; break;
             case "str": cBase = "char*"; break;
             case "char": cBase = "char"; break;
-            case "byte": cBase = "unsigned char"; break;
+            case "byte": cBase = "unsigned char"; break; // Наш байт!
         }
         return cBase + pointers;
     }
@@ -179,25 +182,25 @@ public class Transpiler implements Expr.Visitor<String>, Stmt.Visitor<String> {
         
         varTypes.put(stmt.name.value, rawType);
 
+        // Приставка const для C-кода
+        String prefix = stmt.isConst ? "const " : "";
+        
         if (stmt.initializer != null) {
-            // Если это инициализация массива [1, 2, 3]
             if (stmt.initializer instanceof Expr.ArrayLiteral) {
                 Expr.ArrayLiteral arr = (Expr.ArrayLiteral) stmt.initializer;
-                String cleanType = cType.replace("*", ""); // Убираем звездочки (получаем просто int)
+                String cleanType = cType.replace("*", ""); 
+                StringBuilder brackets = new StringBuilder("[]"); 
                 
-                StringBuilder brackets = new StringBuilder("[]"); // Первая размерность всегда может быть пустой в Си
-                
-                // МАГИЯ: Если это двумерный массив (матрица), считаем размер внутренней строки!
                 if (!arr.elements.isEmpty() && arr.elements.get(0) instanceof Expr.ArrayLiteral) {
                     Expr.ArrayLiteral inner = (Expr.ArrayLiteral) arr.elements.get(0);
-                    brackets.append("[").append(inner.elements.size()).append("]"); // Добавляем [3]
+                    brackets.append("[").append(inner.elements.size()).append("]"); 
                 }
                 
-                return cleanType + " " + stmt.name.value + brackets.toString() + " = " + transpile(stmt.initializer) + ";";
+                return prefix + cleanType + " " + stmt.name.value + brackets.toString() + " = " + transpile(stmt.initializer) + ";";
             }
-            return cType + " " + stmt.name.value + " = " + transpile(stmt.initializer) + ";";
+            return prefix + cType + " " + stmt.name.value + " = " + transpile(stmt.initializer) + ";";
         }
-        return cType + " " + stmt.name.value + " = {0};";
+        return prefix + cType + " " + stmt.name.value + " = {0};";
     }
 
     @Override
