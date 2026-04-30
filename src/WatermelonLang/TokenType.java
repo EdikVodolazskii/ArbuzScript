@@ -19,7 +19,6 @@ public enum TokenType {
     FLOAT_TYPE, // float (Added: Section 3)
     BOOL_TYPE,  // bool
     STR_TYPE,   // str
-    CHAR_TYPE,  // char  (Added: Section 3)
     BYTE_TYPE,  // byte  (Critical for crypto, Section 3)
 
     // --- 3. FLOW CONTROL ---
@@ -36,7 +35,6 @@ public enum TokenType {
     INT_LITERAL,    // 123
     FLOAT_LITERAL,  // 12.34 (Added)
     STRING_LITERAL, // "text"
-    CHAR_LITERAL,   // 'c'   (Added)
     TRUE,           // true
     FALSE,          // false
 
@@ -45,8 +43,6 @@ public enum TokenType {
     MINUS,          // -
     STAR,           // *
     SLASH,          // /
-    PERCENT,        // %
-    CARET,          // ^ (Exponentiation, Section 8)
     ASSIGN,         // =
 
     // --- 6. LOGICAL OPERATORS AND COMPARISON ---
@@ -58,8 +54,6 @@ public enum TokenType {
     GREATER_EQUAL,  // >=
 
     // Symbolic (Legacy/C-style)
-    AND_AND,        // &&
-    OR_OR,          // ||
     BANG,           // !
 
     // Word-based (Python-style, from Section 8)
@@ -80,7 +74,6 @@ public enum TokenType {
     // --- 8. SPECIAL CHARACTERS ---
     ARROW,          // -> (For return type)
     DOT,            // .  (For field access: struct.field)
-    QUESTION,       // ?  (For error propagation Result, Section 9)
 
     // --- 9. BRACKETS AND SEPARATORS ---
     LPAREN,         // (

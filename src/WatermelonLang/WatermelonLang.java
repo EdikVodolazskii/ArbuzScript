@@ -33,8 +33,8 @@ public class WatermelonLang {
         byte[] bytes = Files.readAllBytes(Paths.get(path));
         run(new String(bytes, Charset.defaultCharset()));
 
-        // If there was an error, exit with an error code
-        if (hadError) System.exit(65);
+        // If there was an error, just return (don't kill the IDE)
+        if (hadError) return;
     }
 
     // Launch interactive console (REPL)
@@ -95,19 +95,19 @@ public class WatermelonLang {
         System.out.println("Generated 'output.c' successfully! 🎉");
 
         // ==========================================
-        // 🍉 АВТОМАТИЧЕСКАЯ СБОРКА И ЗАПУСК (GCC) 🍉
+        // 🍉 AUTOMATIC BUILD AND RUN (GCC) 🍉
         // ==========================================
         System.out.println("\n[Compiling with GCC...]");
         try {
-            ProcessBuilder compilePb = new ProcessBuilder("gcc", "output.c", "-o", "program.exe");
-            compilePb.redirectErrorStream(true); // Сливаем ошибки и обычный вывод вместе
+            ProcessBuilder compilePb = new ProcessBuilder("gcc", "output.c", "-o", "program.exe", "-lm");
+            compilePb.redirectErrorStream(true); // Merge error and standard output
             Process compileProcess = compilePb.start();
             
-            // Читаем вывод GCC СРАЗУ, чтобы буфер не переполнился и процесс не завис!
+            // Read GCC output IMMEDIATELY so the buffer doesn't overflow and the process doesn't hang!
             java.io.BufferedReader compileReader = new java.io.BufferedReader(new java.io.InputStreamReader(compileProcess.getInputStream()));
             String compileLine;
             while ((compileLine = compileReader.readLine()) != null) {
-                System.out.println(compileLine); // Печатаем ошибки GCC в нашу консоль
+                System.out.println(compileLine); // Print GCC errors to our console
             }
             
             int compileResult = compileProcess.waitFor();

@@ -6,6 +6,7 @@ public class Transpiler implements Expr.Visitor<String>, Stmt.Visitor<String> {
 
     // --- MEMORY FOR OOP ---
     private final java.util.Map<String, String> varTypes = new java.util.HashMap<>();
+    private final java.util.Set<String> classNames = new java.util.HashSet<>();
     private String currentClass = null;
 
     // Main entry point. Assembles all C code into one large string.
@@ -27,6 +28,7 @@ public class Transpiler implements Expr.Visitor<String>, Stmt.Visitor<String> {
 
         // Polymorphic print implementation via C macros
         cCode.append("#define print(x) _Generic((x), \\\n" +
+                     "    _Bool: printf(x ? \"true\" : \"false\"), \\\n" +
                      "    int: printf(\"%d\", x), \\\n" +
                      "    double: printf(\"%g\", x), \\\n" +
                      "    char*: printf(\"%s\", x), \\\n" +
@@ -89,7 +91,6 @@ public class Transpiler implements Expr.Visitor<String>, Stmt.Visitor<String> {
             case FLOAT_TYPE: return "double";
             case BOOL_TYPE:  return "bool";
             case STR_TYPE:   return "char*";
-            case CHAR_TYPE:  return "char";
             case BYTE_TYPE:  return "unsigned char";
             default: return "void";
         }
@@ -107,8 +108,7 @@ public class Transpiler implements Expr.Visitor<String>, Stmt.Visitor<String> {
             case "float": cBase = "double"; break;
             case "bool": cBase = "bool"; break;
             case "str": cBase = "char*"; break;
-            case "char": cBase = "char"; break;
-            case "byte": cBase = "unsigned char"; break; // Наш байт!
+            case "byte": cBase = "unsigned char"; break; // Our byte!
         }
         return cBase + pointers;
     }
@@ -182,13 +182,17 @@ public class Transpiler implements Expr.Visitor<String>, Stmt.Visitor<String> {
         
         varTypes.put(stmt.name.value, rawType);
 
-        // Приставка const для C-кода
+        // const prefix for C code
         String prefix = stmt.isConst ? "const " : "";
         
         if (stmt.initializer != null) {
             if (stmt.initializer instanceof Expr.ArrayLiteral) {
                 Expr.ArrayLiteral arr = (Expr.ArrayLiteral) stmt.initializer;
-                String cleanType = cType.replace("*", ""); 
+                
+                // IDEAL SOLUTION: take the pure base language type and run it through the resolver
+                String baseTypeRaw = rawType.replace("[]", ""); 
+                String cleanType = resolveCType(baseTypeRaw); 
+                
                 StringBuilder brackets = new StringBuilder("[]"); 
                 
                 if (!arr.elements.isEmpty() && arr.elements.get(0) instanceof Expr.ArrayLiteral) {
@@ -274,8 +278,8 @@ public class Transpiler implements Expr.Visitor<String>, Stmt.Visitor<String> {
             else if (name.equals("time")) return "(int)time(NULL)";
             else if (name.equals("sizeof")) return "sizeof(" + transpile(expr.arguments.get(0)) + ")";
 
-            // MAGIC 2: Constructor call (e.g., Hero() )
-            if (Character.isUpperCase(name.charAt(0))) {
+            // MAGIC 2: Constructor call
+            if (classNames.contains(name)) {
                 return "(" + name + "){0}"; // C structure initializer
             }
             
@@ -339,6 +343,7 @@ public class Transpiler implements Expr.Visitor<String>, Stmt.Visitor<String> {
 
     @Override
     public String visitClassStmt(Stmt.Class stmt) {
+        classNames.add(stmt.name.value);
         StringBuilder builder = new StringBuilder();
         
         // 1. Generate the structure

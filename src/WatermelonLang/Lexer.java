@@ -15,14 +15,14 @@ public class Lexer {
         SEEN_LESS, IN_LESS_EQ, SEEN_GREATER, IN_GREATER_EQ,
         SEEN_MINUS, IN_ARROW,
         SEEN_PLUS, SEEN_STAR, SEEN_LPAREN, SEEN_RPAREN, SEEN_LBRACE, SEEN_RBRACE,
-        SEEN_LBRACKET, SEEN_RBRACKET, SEEN_SEMICOLON, SEEN_COMMA, SEEN_DOT, SEEN_CARET, SEEN_COLON,
+        SEEN_LBRACKET, SEEN_RBRACKET, SEEN_SEMICOLON, SEEN_COMMA, SEEN_DOT, SEEN_COLON,
         ERROR
     }
 
     // 2. EXTENDING CHARACTER TYPES
     private enum CharType {
         DIGIT, LETTER, DOT, QUOTE, SLASH, EQUALS, BANG, LESS, GREATER, MINUS, SPACE, NEWLINE,
-        PLUS, STAR, LPAREN, RPAREN, LBRACE, RBRACE, LBRACKET, RBRACKET, SEMICOLON, COMMA, CARET, COLON,
+        PLUS, STAR, LPAREN, RPAREN, LBRACE, RBRACE, LBRACKET, RBRACKET, SEMICOLON, COMMA, COLON,
         EOF, OTHER
     }
 
@@ -56,7 +56,7 @@ public class Lexer {
         keywords.put("shl", TokenType.SHL); keywords.put("shr", TokenType.SHR);
         keywords.put("int", TokenType.INT_TYPE); keywords.put("float", TokenType.FLOAT_TYPE);
         keywords.put("bool", TokenType.BOOL_TYPE); keywords.put("str", TokenType.STR_TYPE);
-        keywords.put("char", TokenType.CHAR_TYPE); keywords.put("byte", TokenType.BYTE_TYPE);
+        keywords.put("byte", TokenType.BYTE_TYPE);
 
         // --- 2. CONFIGURE O(1) CHARACTER DICTIONARY (ASCII Table) ---
         Arrays.fill(charMap, CharType.OTHER);
@@ -68,7 +68,7 @@ public class Lexer {
         charMap['='] = CharType.EQUALS; charMap['!'] = CharType.BANG;
         charMap['<'] = CharType.LESS; charMap['>'] = CharType.GREATER;
         charMap['-'] = CharType.MINUS; charMap['+'] = CharType.PLUS;
-        charMap['*'] = CharType.STAR; charMap['^'] = CharType.CARET;
+        charMap['*'] = CharType.STAR;
         charMap['('] = CharType.LPAREN; charMap[')'] = CharType.RPAREN;
         charMap['{'] = CharType.LBRACE; charMap['}'] = CharType.RBRACE;
         charMap['['] = CharType.LBRACKET; charMap[']'] = CharType.RBRACKET;
@@ -107,7 +107,6 @@ public class Lexer {
         setTrans(State.START, CharType.SEMICOLON, State.SEEN_SEMICOLON);
         setTrans(State.START, CharType.COMMA, State.SEEN_COMMA);
         setTrans(State.START, CharType.DOT, State.SEEN_DOT);
-        setTrans(State.START, CharType.CARET, State.SEEN_CARET);
         setTrans(State.START, CharType.COLON, State.SEEN_COLON);
 
         // Strings
@@ -171,7 +170,6 @@ public class Lexer {
         acceptingStates[State.SEEN_SEMICOLON.ordinal()] = TokenType.SEMICOLON;
         acceptingStates[State.SEEN_COMMA.ordinal()] = TokenType.COMMA;
         acceptingStates[State.SEEN_DOT.ordinal()] = TokenType.DOT;
-        acceptingStates[State.SEEN_CARET.ordinal()] = TokenType.CARET;
         acceptingStates[State.SEEN_COLON.ordinal()] = TokenType.COLON;
     }
 

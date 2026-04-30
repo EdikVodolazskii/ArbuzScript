@@ -69,7 +69,7 @@ public class Parser {
             do {
                 params.add(consume(IDENT, "Expect parameter name."));
                 consume(COLON, "Expect ':' after parameter name.");
-                if (match(INT_TYPE, FLOAT_TYPE, BOOL_TYPE, STR_TYPE, CHAR_TYPE, BYTE_TYPE, IDENT)) {
+                if (match(INT_TYPE, FLOAT_TYPE, BOOL_TYPE, STR_TYPE, BYTE_TYPE, IDENT)) {
                     Token baseType = previous();
                     StringBuilder typeName = new StringBuilder(baseType.value);
                     while (match(LBRACKET)) {
@@ -90,7 +90,7 @@ public class Parser {
 
         consume(ARROW, "Expect '->' before return type.");
         Token returnType;
-        if (match(INT_TYPE, FLOAT_TYPE, BOOL_TYPE, STR_TYPE, CHAR_TYPE, BYTE_TYPE, IDENT)) {
+        if (match(INT_TYPE, FLOAT_TYPE, BOOL_TYPE, STR_TYPE, BYTE_TYPE, IDENT)) {
             Token baseType = previous();
             StringBuilder typeName = new StringBuilder(baseType.value);
             while (match(LBRACKET)) {
@@ -117,7 +117,7 @@ public class Parser {
         consume(COLON, "Expect ':' after variable name.");
 
         Token type;
-        if (match(INT_TYPE, FLOAT_TYPE, BOOL_TYPE, STR_TYPE, CHAR_TYPE, BYTE_TYPE, IDENT)) {
+        if (match(INT_TYPE, FLOAT_TYPE, BOOL_TYPE, STR_TYPE, BYTE_TYPE, IDENT)) {
             Token baseType = previous();
             StringBuilder typeName = new StringBuilder(baseType.value);
             
@@ -283,7 +283,7 @@ public class Parser {
     // Parses logical OR.
     private Expr logicalOr() {
         Expr expr = logicalAnd();
-        while (match(OR_KW, OR_OR)) {
+        while (match(OR_KW)) {
             Token operator = previous();
             Expr right = logicalAnd();
             expr = new Expr.Logical(expr, operator, right);
@@ -294,7 +294,7 @@ public class Parser {
     // Parses logical AND.
     private Expr logicalAnd() {
         Expr expr = equality();
-        while (match(AND_KW, AND_AND)) {
+        while (match(AND_KW)) {
             Token operator = previous();
             Expr right = equality();
             expr = new Expr.Logical(expr, operator, right);
@@ -409,7 +409,7 @@ public class Parser {
         if (match(THIS)) return new Expr.This(previous());
         
         // --- UPDATED: Built-in types are now considered valid expressions (for sizeof) ---
-        if (match(IDENT, INT_TYPE, FLOAT_TYPE, BOOL_TYPE, STR_TYPE, CHAR_TYPE, BYTE_TYPE)) {
+        if (match(IDENT, INT_TYPE, FLOAT_TYPE, BOOL_TYPE, STR_TYPE, BYTE_TYPE)) {
             return new Expr.Variable(previous());
         }
 

@@ -13,6 +13,7 @@ public class TypeChecker implements Expr.Visitor<TokenType>, Stmt.Visitor<Void> 
     // --- NEW FIELDS FOR CLASSES ---
     private final Map<String, Stmt.Class> classes = new HashMap<>();
     private String currentClass = null; // Stores the name of the class we are currently in
+    private Stmt.Function currentFunction = null;
 
     // Initialization of the global scope
     public TypeChecker() {
@@ -139,12 +140,18 @@ public class TypeChecker implements Expr.Visitor<TokenType>, Stmt.Visitor<Void> 
     @Override
     public Void visitFunctionStmt(Stmt.Function stmt) {
         functions.put(stmt.name.value, stmt);
+
+        Stmt.Function enclosingFunction = currentFunction; // Remember the previous one
+        currentFunction = stmt; // We entered the function!
+
         beginScope();
         for (int i = 0; i < stmt.params.size(); i++) {
             declare(stmt.params.get(i), stmt.paramTypes.get(i).type);
         }
         for (Stmt s : stmt.body) check(s);
         endScope();
+
+        currentFunction = enclosingFunction; // Exited the function
         return null;
     }
 
@@ -160,7 +167,8 @@ public class TypeChecker implements Expr.Visitor<TokenType>, Stmt.Visitor<Void> 
     public Void visitIfStmt(Stmt.If stmt) {
         TokenType condType = check(stmt.condition);
         if (condType != TokenType.BOOL_TYPE && condType != TokenType.IDENT && condType != null) {
-            WatermelonLang.error(stmt.condition instanceof Expr.Variable ? 0 : 0, "Condition in 'if' must be a boolean.");
+            int line = (stmt.condition instanceof Expr.Variable) ? ((Expr.Variable)stmt.condition).name.line : 1;
+            WatermelonLang.error(line, "Condition in 'if' must be a boolean.");
         }
         check(stmt.thenBranch);
         if (stmt.elseBranch != null) check(stmt.elseBranch);
@@ -172,7 +180,8 @@ public class TypeChecker implements Expr.Visitor<TokenType>, Stmt.Visitor<Void> 
     public Void visitWhileStmt(Stmt.While stmt) {
         TokenType condType = check(stmt.condition);
         if (condType != TokenType.BOOL_TYPE && condType != TokenType.IDENT && condType != null) {
-            WatermelonLang.error(0, "Condition in 'while' must be a boolean.");
+            int line = (stmt.condition instanceof Expr.Variable) ? ((Expr.Variable)stmt.condition).name.line : 1;
+            WatermelonLang.error(line, "Condition in 'while' must be a boolean.");
         }
         check(stmt.body);
         return null;
@@ -181,7 +190,27 @@ public class TypeChecker implements Expr.Visitor<TokenType>, Stmt.Visitor<Void> 
     // Check the return value
     @Override
     public Void visitReturnStmt(Stmt.Return stmt) {
-        if (stmt.value != null) check(stmt.value);
+        if (currentFunction == null) {
+            WatermelonLang.error(stmt.keyword.line, "Cannot return from top-level code.");
+            return null;
+        }
+
+        TokenType expectedType = currentFunction.returnType.type;
+        TokenType actualType = null;
+
+        if (stmt.value != null) {
+            actualType = check(stmt.value);
+        }
+
+        // If the function should return void and we return a value (or vice versa)
+        if (expectedType == TokenType.IDENT && currentFunction.returnType.value.equals("void")) {
+            if (actualType != null) {
+                WatermelonLang.error(stmt.keyword.line, "Function must not return a value.");
+            }
+        } else if (actualType != expectedType && expectedType != TokenType.IDENT && actualType != TokenType.IDENT) {
+            WatermelonLang.error(stmt.keyword.line, "Return type mismatch. Expected " + expectedType + " but got " + actualType + ".");
+        }
+
         return null;
     }
 
@@ -200,7 +229,8 @@ public class TypeChecker implements Expr.Visitor<TokenType>, Stmt.Visitor<Void> 
         TokenType indexType = check(expr.index); // Check the index
         
         if (indexType != TokenType.INT_TYPE && indexType != TokenType.IDENT) {
-            WatermelonLang.error(0, "Array index must be an integer.");
+            int line = (expr.index instanceof Expr.Variable) ? ((Expr.Variable)expr.index).name.line : 1;
+            WatermelonLang.error(line, "Array index must be an integer.");
         }
         return TokenType.IDENT; 
     }
@@ -211,7 +241,8 @@ public class TypeChecker implements Expr.Visitor<TokenType>, Stmt.Visitor<Void> 
         TokenType indexType = check(expr.index);
         
         if (indexType != TokenType.INT_TYPE && indexType != TokenType.IDENT) {
-            WatermelonLang.error(0, "Array index must be an integer.");
+            int line = (expr.index instanceof Expr.Variable) ? ((Expr.Variable)expr.index).name.line : 1;
+            WatermelonLang.error(line, "Array index must be an integer.");
         }
         return check(expr.value); // Return the type of the assigned value
     }
@@ -232,7 +263,7 @@ public class TypeChecker implements Expr.Visitor<TokenType>, Stmt.Visitor<Void> 
         // If the variable is a built-in type (e.g., int), simply return it
         switch (expr.name.type) {
             case INT_TYPE: case FLOAT_TYPE: case BOOL_TYPE: 
-            case STR_TYPE: case CHAR_TYPE: case BYTE_TYPE:
+            case STR_TYPE: case BYTE_TYPE:
                 return expr.name.type;
         }
         // NEW: Allow using class names (e.g., for sizeof)
@@ -312,8 +343,31 @@ public class TypeChecker implements Expr.Visitor<TokenType>, Stmt.Visitor<Void> 
             
             // 1. Is this a regular function call?
             if (functions.containsKey(name)) {
-                for (Expr arg : expr.arguments) check(arg);
-                return functions.get(name).returnType.type;
+                Stmt.Function func = functions.get(name);
+                
+                // Built-in functions are registered with line == 0. Skip their check.
+                boolean isNative = func.name.line == 0;
+                
+                if (!isNative) {
+                    // Our strict check for regular functions
+                    if (expr.arguments.size() != func.params.size()) {
+                        WatermelonLang.error(expr.paren.line, "Expected " + func.params.size() + " arguments but got " + expr.arguments.size() + ".");
+                    } else {
+                        for (int i = 0; i < expr.arguments.size(); i++) {
+                            TokenType argType = check(expr.arguments.get(i));
+                            TokenType paramType = func.paramTypes.get(i).type;
+                            
+                            // Ignore strict checks for IDENT (arrays/objects)
+                            if (argType != paramType && argType != TokenType.IDENT && paramType != TokenType.IDENT) {
+                                // Exception: allow passing int to byte
+                                if (!(paramType == TokenType.BYTE_TYPE && argType == TokenType.INT_TYPE)) {
+                                    WatermelonLang.error(expr.paren.line, "Argument type mismatch at position " + (i+1) + ".");
+                                }
+                            }
+                        }
+                    }
+                }
+                return func.returnType.type;
             }
             
             // 2. Is this a class constructor call (object creation)?
@@ -354,12 +408,17 @@ public class TypeChecker implements Expr.Visitor<TokenType>, Stmt.Visitor<Void> 
 
         // Check the body of each method (like a regular function)
         for (Stmt.Function method : stmt.methods) {
+            Stmt.Function enclosingFunction = currentFunction; // Remember the global context
+            currentFunction = method; // <-- SUPER IMPORTANT: Tell the checker we entered the method!
+
             beginScope();
             for (int i = 0; i < method.params.size(); i++) {
                 declare(method.params.get(i), method.paramTypes.get(i).type);
             }
             for (Stmt s : method.body) check(s);
             endScope();
+
+            currentFunction = enclosingFunction; // <-- Exited the method
         }
 
         endScope();
